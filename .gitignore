@@ -33,3 +33,11 @@ vendor/
 dist/
 build/
 coverage/
+
+# --- Application: runtime state must never be committed ---
+config/config.php
+storage/*
+!storage/.gitkeep
+
+# Development-only tooling dependencies (the product never needs them)
+tools/dev/node_modules/

@@ -416,6 +416,8 @@ const NEGATION_MARKERS = [
   'not ', 'no ', 'never', 'without', 'avoid', 'must not', 'do not', "don't", 'reserved',
   'undecided', 'unratified', 'forbidden', 'prohibit', 'until', 'engine-specific', 'ask',
   'owner', 'ratified', 'question', 'open decision', 'banned',
+  // A provisional statement is acceptable when the text itself says it is provisional.
+  'assumption', 'assumed', 'to be confirmed', 'confirm', 'verify', 'unverified', 'provisional',
 ];
 
 function checkPrematureStack() {
@@ -427,7 +429,14 @@ function checkPrematureStack() {
       const lower = line.toLowerCase();
       const hit = OWNER_RESERVED_TOKENS.find((token) => new RegExp(`\\b${token}\\b`).test(lower));
       if (!hit) return;
-      if (NEGATION_MARKERS.some((marker) => lower.includes(marker))) return;
+      // Prose wraps: the qualifier ("an assumption", "to be confirmed", "owner decision") often
+      // sits on a neighbouring line. The marker is therefore looked for in a small window, not
+      // only on the exact line that names the technology.
+      const window = lines
+        .slice(Math.max(0, index - 2), index + 3)
+        .join(' ')
+        .toLowerCase();
+      if (NEGATION_MARKERS.some((marker) => window.includes(marker))) return;
       flagged += 1;
       warn(
         'premature-stack',

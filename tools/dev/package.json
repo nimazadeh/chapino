@@ -1,0 +1,14 @@
+{
+  "name": "chapino-dev-tooling",
+  "private": true,
+  "type": "module",
+  "description": "Development-only tooling. NEVER required to run the product: the product runs on PHP and a database only (ADR-0002).",
+  "scripts": {
+    "lint": "node php.mjs lint",
+    "test": "node php.mjs test",
+    "check": "node php.mjs check"
+  },
+  "devDependencies": {
+    "@php-wasm/node": "3.1.53"
+  }
+}
