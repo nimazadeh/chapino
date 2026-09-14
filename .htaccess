@@ -1,0 +1,23 @@
+# Fail closed when the document root is wrong.
+#
+# The web root of this application is public/ - and only public/. Pointing a host at the repository
+# root (an easy mistake: htdocs/chapino instead of htdocs/chapino/public) would publish config/,
+# storage/ and the sources. This file makes that mistake fail immediately instead of quietly.
+#
+# It is never read in a correct installation: Apache only reads .htaccess files between the requested
+# directory and the document root, and this file sits above public/. nginx ignores .htaccess entirely,
+# which is why the install runbook states the document root requirement in words as well.
+#
+# The exception that Apache merges from public/.htaccess (the front controller) is deliberate: even in
+# the wrong-document-root case the site is reachable, while config/, storage/ and the sources are not.
+
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>
+
+# Directory listings leak file names even when every file is denied.
+Options -Indexes

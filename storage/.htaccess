@@ -1,0 +1,19 @@
+# Runtime state must never be downloadable.
+#
+# storage/ holds sessions, logs, uploads and (in SQLite installations) the database itself. It is meant
+# to live OUTSIDE the web root; when a host only allows a document root of its own choosing, this file
+# is the second line of defence and the runbook's instruction is the first.
+#
+# Note for the deployment runbook: .htaccess requires "AllowOverride All" (or at least the AuthConfig
+# and Indexes overrides). When a host disables overrides, moving storage/ above the document root is
+# the only real protection - and it is the recommended layout anyway.
+
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+    Order allow,deny
+    Deny from all
+</IfModule>
+
+Options -Indexes

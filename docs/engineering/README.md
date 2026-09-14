@@ -11,6 +11,7 @@ for a new engineer (human or agent) joining the project with no prior context.
 - **Product scope:** [docs/product/scope.md](../product/scope.md)
 - **Open questions and defaults:** [docs/product/open-questions.md](../product/open-questions.md)
 - **Project context and open decisions:** [project-context.md](project-context.md)
+- **Install and deployment runbook:** [runbooks/install-and-deploy.md](runbooks/install-and-deploy.md)
 - **Task reports:** [reports/](reports/)
 - **Templates:** [templates/](templates/)
 
@@ -29,9 +30,11 @@ Two ideas hold the whole system together:
 2. **Separation of responsibilities.** Obligations (rules) and procedures (workflows) are different
    things and live in different places, so neither is buried inside the other.
 
-> **Current state of this repository:** the engineering governance layer only. There is no product
-> code, no framework, no schema, no API and no UI yet. Product requirements arrive later, and the
-> engineering system described here governs that work when it starts.
+> **Current state of this repository:** Phase 0 of the product exists - application core, data layer
+> and migrations, sessions/CSRF/rate limiting and the job queue, the RTL design system with a
+> self-hosted Persian font, the create-only settings seeder, the host capability report and the
+> browser test harness. What is not built yet is listed per item in
+> [the roadmap](../product/roadmap.md), and what is unverified is stated in each slice report.
 
 ## 2. How to operate (the loop)
 

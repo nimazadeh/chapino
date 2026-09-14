@@ -22,7 +22,9 @@ would otherwise assume a worker, a queue, a cache server or a build step.
 
 1. The application is a **classic PHP request/response application** served by the web server, with a
    front controller and an application router; it must work with and without URL rewriting
-   (`mod_rewrite`), degrading to query-string routing if rewriting is unavailable.
+   (`mod_rewrite`). When rewriting is unavailable the front controller is still reachable as
+   `/index.php?r=/path`, but generated links assume rewriting: a host without it needs the URL
+   mode recorded in the install runbook (and confirmed against the real host, `O-20`).
 2. **No runtime dependencies beyond PHP and the database.** Development-time tooling (Node, test
    runners) may exist but must never be required to run the product on the host.
 3. **Background work is cron-driven**: a scheduled entry point processes a database-backed job queue

@@ -38,6 +38,8 @@ coverage/
 config/config.php
 storage/*
 !storage/.gitkeep
+# The deny file is part of the deployment, not runtime state.
+!storage/.htaccess
 
 # Development-only tooling dependencies (the product never needs them)
 tools/dev/node_modules/

@@ -1,9 +1,10 @@
 # Web-root configuration.
 #
 # Two jobs only: route everything through the front controller when URL rewriting is
-# available, and harden the directory. When rewriting is NOT available the application
-# still works: links are generated as /index.php?r=/path, so no feature depends on
-# mod_rewrite (ADR-0002).
+# available, and harden the directory. When rewriting is NOT available the front controller
+# is still reachable as /index.php?r=/path (the Request object resolves that form), but the
+# links the application generates are clean URLs - see the URL section of the install
+# runbook for what a host without rewriting needs (ADR-0002, O-20).
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
