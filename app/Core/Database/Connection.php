@@ -113,20 +113,72 @@ final class Connection
         $pdo->exec('PRAGMA foreign_keys = ON');
         $pdo->exec('PRAGMA busy_timeout = 5000');
 
+        // Without extended result codes SQLite reports the same primary code (19) for every
+        // constraint failure, so a foreign-key violation and a duplicate entry would look identical.
+        // The application must tell them apart: a duplicate is a business event, a foreign-key
+        // violation is a bug. The constant is guarded because it is not present in every build.
+        if (defined('PDO::SQLITE_ATTR_EXTENDED_RESULT_CODES')) {
+            $pdo->setAttribute(constant('PDO::SQLITE_ATTR_EXTENDED_RESULT_CODES'), true);
+        }
+
         return $pdo;
     }
 
     /** @param array<string, mixed> $settings */
+    /**
+     * Builds the MySQL DSN, refusing settings that could smuggle extra connection parameters.
+     *
+     * This is a pure function on purpose: the MySQL branch cannot be executed in the development
+     * runtime, so it is verified by asserting its output instead of by connecting. The validation is
+     * not decoration - the DSN is a `;`-separated string, so a database name containing `;` could
+     * append parameters such as `unix_socket=` to the connection the server opens. Values come from
+     * a file the installer writes, and are still never trusted.
+     */
+    public static function mysqlDsn(array $settings): string
+    {
+        $host = (string) ($settings['host'] ?? 'localhost');
+        $name = (string) ($settings['name'] ?? '');
+        $charset = (string) ($settings['charset'] ?? 'utf8mb4');
+        $port = (int) ($settings['port'] ?? 3306);
+
+        if (preg_match('/^[A-Za-z0-9._:\[\]%\-]+$/', $host) !== 1) {
+            throw new DatabaseException(
+                'میزبان پایگاه‌داده نامعتبر است: ' . $host,
+                'database_config_invalid',
+            );
+        }
+
+        if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*$/', $name) !== 1) {
+            throw new DatabaseException(
+                'نام پایگاه‌داده نامعتبر است: ' . $name . ' (فقط حروف، عدد و زیرخط)',
+                'database_config_invalid',
+            );
+        }
+
+        // utf8mb4 only, for the same reason lengths are 191: Persian text and emoji must fit, and a
+        // legacy charset would silently mangle them.
+        if (preg_match('/^[A-Za-z0-9_]+$/', $charset) !== 1) {
+            throw new DatabaseException(
+                'مجموعه نویسه‌های پایگاه‌داده نامعتبر است: ' . $charset,
+                'database_config_invalid',
+            );
+        }
+
+        if ($port < 1 || $port > 65535) {
+            throw new DatabaseException(
+                'شماره پورت پایگاه‌داده نامعتبر است: ' . $port,
+                'database_config_invalid',
+            );
+        }
+
+        return sprintf('mysql:host=%s;port=%d;dbname=%s;charset=%s', $host, $port, $name, $charset);
+    }
+
     private static function connectMysql(array $settings): \PDO
     {
-        $charset = (string) ($settings['charset'] ?? 'utf8mb4');
-        $dsn = sprintf(
-            'mysql:host=%s;port=%d;dbname=%s;charset=%s',
-            (string) ($settings['host'] ?? 'localhost'),
-            (int) ($settings['port'] ?? 3306),
-            (string) ($settings['name'] ?? ''),
-            $charset,
-        );
+        // Validation throws before any connection is attempted, so a bad configuration never opens a
+        // socket, and never reaches the driver at all.
+        $dsn = self::mysqlDsn($settings);
 
         return new \PDO($dsn, (string) ($settings['user'] ?? ''), (string) ($settings['password'] ?? ''), [
             // Server-side prepared statements: real parameter binding, not client-side quoting.
@@ -379,15 +431,68 @@ final class Connection
             return $statement;
         } catch (\PDOException $e) {
             $sqlState = is_string($e->getCode()) && $e->getCode() !== '' ? $e->getCode() : null;
-            throw new DatabaseException(
-                $sqlState !== null && str_starts_with($sqlState, '23')
-                    ? DatabaseException::duplicateMessage()
-                    : DatabaseException::userMessage(),
-                $sqlState !== null && str_starts_with($sqlState, '23') ? 'database_duplicate' : 'database_error',
+            $errorInfo = $e->errorInfo;
+            $driverCode = is_array($errorInfo) && isset($errorInfo[1]) && is_numeric($errorInfo[1])
+                ? (int) $errorInfo[1]
+                : null;
+
+            throw self::classify($sqlState, $driverCode, $e);
+        }
+    }
+
+    /**
+     * Turns a driver failure into a typed {"kind"} the application can react to.
+     *
+     * The distinction is not cosmetic: a duplicate is a normal business event ("this number is already
+     * registered"), while a foreign-key violation means the code tried to reference something that
+     * does not exist - a bug that must stay loud.
+     */
+    private static function classify(?string $sqlState, ?int $driverCode, \PDOException $e): DatabaseException
+    {
+        $exception = new DatabaseException(DatabaseException::userMessage(), 'database_error', $sqlState, $e, $driverCode);
+
+        if ($exception->isDuplicate()) {
+            return new DatabaseException(
+                DatabaseException::duplicateMessage(),
+                'database_duplicate',
                 $sqlState,
                 $e,
+                $driverCode,
             );
         }
+
+        if ($exception->isForeignKeyViolation()) {
+            return new DatabaseException(
+                DatabaseException::foreignKeyMessage(),
+                'database_foreign_key',
+                $sqlState,
+                $e,
+                $driverCode,
+            );
+        }
+
+        if (DatabaseException::looksLikeMissingTable($sqlState, $driverCode, $e->getMessage())) {
+            return new DatabaseException(
+                'ساختار پایگاه‌داده کامل نیست (جدول موردنیاز ساخته نشده است). '
+                . 'برای تکمیل نصب، دستور php bin/migrate.php را اجرا کنید.',
+                'database_schema_missing',
+                $sqlState,
+                $e,
+                $driverCode,
+            );
+        }
+
+        if ($exception->isIntegrityViolation()) {
+            return new DatabaseException(
+                DatabaseException::constraintMessage(),
+                'database_constraint',
+                $sqlState,
+                $e,
+                $driverCode,
+            );
+        }
+
+        return $exception;
     }
 
     private static function parameterType(mixed $value): int

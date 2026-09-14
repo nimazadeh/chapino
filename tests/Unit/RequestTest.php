@@ -197,4 +197,13 @@ final class RequestTest extends TestCase
         $this->assertMatches('/^[0-9a-f]{16}$/', Request::create('GET', '/')->requestId);
         $this->assertNotSame(Request::create('GET', '/')->requestId, Request::create('GET', '/')->requestId);
     }
+
+    public function testTheMeasuredBodySizeIsAvailableAndUnknownWhenNotMeasured(): void
+    {
+        // `null` means "not measured" and must never be read as "empty": a caller that confuses the
+        // two would turn an unknown size into an assumed-safe one.
+        $this->assertNull(Request::create('POST', '/x')->rawBodyLength());
+        $this->assertSame(0, Request::create('POST', '/x', [], [], [], '127.0.0.1', null, 0)->rawBodyLength());
+        $this->assertSame(4096, Request::create('POST', '/x', [], [], [], '127.0.0.1', null, 4096)->rawBodyLength());
+    }
 }

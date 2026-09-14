@@ -40,3 +40,4 @@ from [../templates/report.md](../templates/report.md).
 | 2026-09-14 | [Product constraints, ADRs and phase roadmap](2026-09-14-product-constraints-and-roadmap.md) | PASS WITH RISKS | Owner decisions recorded; roadmap defined (no product code) |
 | 2026-09-14 | [Phase 0, slice 1: application core](2026-09-14-phase-0-slice-1-core.md) | PASS WITH RISKS | Application core, Persian validation, tests, install self-check |
 | 2026-09-14 | [Phase 0, slice 2: data layer, migrations, installer](2026-09-14-phase-0-slice-2-database.md) | PASS WITH RISKS | PDO data layer (sqlite/mysql), schema builder, versioned migrations, installer, environment report |
+| 2026-09-14 | [Phase 0, slice 3: sessions, CSRF, rate limiting, job queue](2026-09-14-phase-0-slice-3-security-and-jobs.md) | PASS WITH RISKS | Session and cookie policy, CSRF, database rate limiting, DB-backed job queue with cron entry point, operator tools |

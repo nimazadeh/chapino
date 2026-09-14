@@ -23,6 +23,14 @@ final class Request
         public readonly string $clientIp,
         public readonly string $requestId,
         private ?array $json = null,
+        /**
+         * Size of the body that actually arrived, in bytes, or null when it is unknown.
+         *
+         * Kept because `Content-Length` is a claim, not a fact: a client may omit it (chunked
+         * encoding) or understate it, and a size limit that can be bypassed by leaving out a header
+         * is not a limit. Null means "not measured" - never "empty".
+         */
+        private ?int $rawBodyLength = null,
     ) {
     }
 
@@ -51,6 +59,7 @@ final class Request
             self::clientIp($_SERVER),
             self::generateRequestId(),
             $json,
+            strlen($raw),
         );
     }
 
@@ -63,6 +72,7 @@ final class Request
         array $headers = [],
         string $clientIp = '127.0.0.1',
         ?string $requestId = null,
+        ?int $rawBodyLength = null,
     ): self {
         return new self(
             strtoupper($method),
@@ -73,7 +83,15 @@ final class Request
             [],
             $clientIp,
             $requestId ?? self::generateRequestId(),
+            null,
+            $rawBodyLength,
         );
+    }
+
+    /** The measured body size in bytes, or null when it was not measured. */
+    public function rawBodyLength(): ?int
+    {
+        return $this->rawBodyLength;
     }
 
     /**
@@ -178,6 +196,25 @@ final class Request
                 'body' => $this->body,
                 default => $this->query,
             };
+            if (array_key_exists($key, $bag)) {
+                return $bag[$key];
+            }
+        }
+
+        return $default;
+    }
+
+    /**
+     * Reads one value from the request body only: the JSON body, then the form body.
+     *
+     * The query string is deliberately excluded. `input()` merges all three sources, which is useful
+     * for ordinary form handling but wrong wherever the *source* is part of the security decision - a
+     * CSRF token taken from a URL would leak through logs, browser history and the Referer header of
+     * any link on the page.
+     */
+    public function body(string $key, mixed $default = null): mixed
+    {
+        foreach ([$this->json ?? [], $this->body] as $bag) {
             if (array_key_exists($key, $bag)) {
                 return $bag[$key];
             }

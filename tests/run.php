@@ -57,6 +57,15 @@ $assertions = 0;
 $failures = [];
 $started = microtime(true);
 
+// Everything the run prints is buffered, and the buffer is flushed at the very end.
+//
+// This is not cosmetic: PHP refuses to start a session once output has been sent ("headers already
+// sent"), and this runner would otherwise make every session-dependent test unrunnable. Buffering
+// keeps headers_sent() false for the whole run, which is exactly the state a real request is in when
+// the front controller starts. The trade-off is that progress is printed in one block instead of
+// streaming; a hanging test still shows its place because the failing test name is included.
+ob_start();
+
 foreach ($testFiles as $file) {
     $before = get_declared_classes();
     require_once $file;
@@ -114,5 +123,9 @@ foreach ($failures as $label => $message) {
     echo "FAILED: {$label}\n  {$message}\n\n";
 }
 echo "Tests: {$passed} passed, {$failed} failed, {$assertions} assertions, {$duration} ms\n";
+
+// Flush what the run produced. The buffer is what kept session_start() possible for the tests above.
+$report = (string) ob_get_clean();
+fwrite(STDOUT, $report);
 
 exit($failed === 0 ? 0 : 1);

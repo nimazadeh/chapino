@@ -23,3 +23,4 @@ An ADR never records what has not been decided, and never a decision reserved to
 | [ADR-0003](ADR-0003-deferred-ai-provider-seam.md) | AI image generation as a disabled, provider-agnostic seam | accepted | 2026-09-14 |
 | [ADR-0004](ADR-0004-iran-region-integrations.md) | ZarinPal for payments and Kaveh Negar for SMS, verified server-side | accepted | 2026-09-14 |
 | [ADR-0005](ADR-0005-data-layer-and-migrations.md) | Hand-written data layer, dialect-aware schema builder, plain-PHP migrations | accepted | 2026-09-14 |
+| [ADR-0006](ADR-0006-sessions-csrf-rate-limiting-and-job-queue.md) | PHP-native sessions with a data-backed identity, deny-by-default CSRF, database-backed rate limiting, cron-driven job queue | accepted | 2026-09-14 |

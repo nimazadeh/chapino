@@ -94,9 +94,23 @@ final class InstallerTest extends TestCase
         $created = $this->installer()->prepareStorage(['path' => 'storage']);
 
         $this->assertTrue(count($created) >= 6, 'the runtime directories must be created');
-        foreach (['storage', 'storage/logs', 'storage/cache', 'storage/uploads', 'storage/tmp', 'storage/backups'] as $directory) {
+        foreach ([
+            'storage',
+            'storage/logs',
+            'storage/cache',
+            'storage/uploads',
+            'storage/tmp',
+            'storage/backups',
+            'storage/sessions',
+        ] as $directory) {
             $this->assertTrue(is_dir($this->root . '/' . $directory), "{$directory} must exist");
         }
+
+        // Session files hold a logged-in user's state. On shared hosting the same machine can host
+        // other customers' code, so the directory must not be readable by anyone else - and that must
+        // be true from the moment it is created, not after somebody remembers to run chmod.
+        $permissions = fileperms($this->root . '/storage/sessions') & 0777;
+        $this->assertSame(0700, $permissions, sprintf('storage/sessions must be 0700, found 0%o', $permissions));
 
         // An uploads directory that can execute PHP is a remote-code-execution vector.
         $deny = $this->root . '/storage/uploads/.htaccess';

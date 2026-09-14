@@ -1,9 +1,12 @@
 # chapino
 
-> **Status:** Phase 0 (foundation) is in progress. The application core - configuration, request
-> lifecycle, routing, error handling, logging, Persian validation - exists and is exercised by a
-> real test suite. Product features do not exist yet. The delivery sequence is in
-> [docs/product/roadmap.md](docs/product/roadmap.md).
+> **Status:** Phase 0 (foundation) is in progress. Delivered so far: the application core
+> (configuration, request lifecycle, routing, error handling, logging, Persian validation), the data
+> layer with versioned migrations and an installer that needs no shell, and the security foundation
+> (session and cookie policy, CSRF, database-backed rate limiting) with a database-backed job queue
+> driven by cron. Product features do not exist yet. The delivery sequence is in
+> [docs/product/roadmap.md](docs/product/roadmap.md); what remains in Phase 0 is the RTL design
+> system, the browser-side test harness and the installation runbook.
 
 A print-on-demand customisation platform for Iran: a user builds a design in the browser, previews it
 on a product mockup, publishes it as a shareable product page, and an order is placed and paid for
@@ -35,7 +38,9 @@ app/               application code (outside the web root)
 config/            config.example.php (committed) ; config.php (never committed)
 storage/           writable runtime directory: logs, cache, uploads, backups (never committed)
 tests/             dependency-free test suite (tests/run.php)
-bin/               CLI entry points: smoke.php (installation self-check), later: cron, installer, migrate
+bin/               CLI entry points: install.php, migrate.php, check-requirements.php,
+                   smoke.php (installation self-check), cron.php (runs the job queue),
+                   queue.php (inspect and retry jobs)
 tools/dev/         development-only PHP runner - never part of the product
 docs/              engineering system, product scope, roadmap, reports
 ```
@@ -57,6 +62,8 @@ cd tools/dev && npm install          # once
 node tools/dev/php.mjs lint                    # parse-check every PHP file
 node tools/dev/php.mjs test                    # run the test suite
 node tools/dev/php.mjs run bin/smoke.php --config=/path/to/config.php   # installation self-check
+node tools/dev/php.mjs run bin/cron.php                                # run queued jobs once
+node tools/dev/php.mjs run bin/queue.php --status                      # queue state for the operator
 ```
 
 On a host with native PHP, the equivalent commands are:
@@ -69,12 +76,22 @@ php bin/smoke.php --config=/path/config.php
 ### Installation (first steps)
 
 ```bash
-cp config/config.example.php config/config.php   # then fill in the values
+php bin/check-requirements.php                   # what this host supports, before anything is written
+php bin/install.php --driver=sqlite --url=http://localhost:8080
 php bin/smoke.php                                # should report 0 failures
+php bin/cron.php                                 # run the queue once, as the host's cron would
 ```
 
-`config/config.php` holds credentials and host paths and is never committed. The database layer,
-migrations, the installer and the cron entry point arrive in the next Phase 0 slice.
+`bin/install.php` writes `config/config.php` (refusing to overwrite an existing one without
+`--force`), creates the writable runtime directories - `storage/sessions` with mode `0700`, because
+session files hold login state - and applies the migrations. Nothing needs a shell beyond running the
+command: the same steps can be reproduced through the hosting panel, which is what the installation
+runbook will document.
+
+`config/config.php` holds credentials and host paths and is never committed.
+
+The job queue runs on the database and is driven by the host's cron calling `bin/cron.php`; there is
+no daemon to keep alive (`bin/queue.php --status` shows what is waiting, what failed and why).
 
 ## How this repository is governed
 

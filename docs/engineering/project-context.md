@@ -14,13 +14,14 @@ It must never contain an assumption that has not been ratified.
 | Item | State |
 | --- | --- |
 | Product requirements | **Provided (high level).** See `C-15` and [the phase roadmap](../product/roadmap.md). Detail questions are listed in section 4. |
-| Product code | **Exists, Phase 0 in progress.** Slice 1 (core: configuration, routing, error handling, logging, Persian validation) and slice 2 (data layer, migrations, installer, environment report) are delivered. Reports: [slice 1](reports/2026-09-14-phase-0-slice-1-core.md), [slice 2](reports/2026-09-14-phase-0-slice-2-database.md). |
-| Architecture decisions | Five ratified: [ADR-0001](adr/ADR-0001-browser-side-design-engine.md), [ADR-0002](adr/ADR-0002-shared-hosting-target.md), [ADR-0003](adr/ADR-0003-deferred-ai-provider-seam.md), [ADR-0004](adr/ADR-0004-iran-region-integrations.md), [ADR-0005](adr/ADR-0005-data-layer-and-migrations.md). |
+| Product code | **Exists, Phase 0 in progress.** Slice 1 (core: configuration, routing, error handling, logging, Persian validation), slice 2 (data layer, migrations, installer, environment report) and slice 3 (session/cookie policy, CSRF, database-backed rate limiting, database-backed job queue with a cron entry point, operator tools) are delivered. Reports: [slice 1](reports/2026-09-14-phase-0-slice-1-core.md), [slice 2](reports/2026-09-14-phase-0-slice-2-database.md), [slice 3](reports/2026-09-14-phase-0-slice-3-security-and-jobs.md). |
+| Architecture decisions | Six ratified: [ADR-0001](adr/ADR-0001-browser-side-design-engine.md), [ADR-0002](adr/ADR-0002-shared-hosting-target.md), [ADR-0003](adr/ADR-0003-deferred-ai-provider-seam.md), [ADR-0004](adr/ADR-0004-iran-region-integrations.md), [ADR-0005](adr/ADR-0005-data-layer-and-migrations.md), [ADR-0006](adr/ADR-0006-sessions-csrf-rate-limiting-and-job-queue.md). |
 | Technology stack | Constrained and mostly decided: vanilla HTML/CSS/JS frontend, pure PHP backend, shared hosting deployment. Database engine and PHP version are **provisional assumptions** until a host exists (`O-2`, `O-3`, `O-20`); the code must satisfy both while they remain assumptions. |
 | Hosting / deployment target | Shape decided (shared PHP hosting, inside Iran). **No real host exists yet**: the owner tests on localhost (XAMPP, Laragon, `php -S`), so everything is verified locally and reported as unverified on the target (`O-4`, `O-20`). |
 | Integrations | ZarinPal (payments) and Kaveh Negar (SMS) ratified. Fulfilment is outsourced to a third-party print house that is not yet chosen (`C-16`, `O-13`). No AI provider in the current scope; a seam is required (ADR-0003). |
 | Application directory layout | Defined and committed: `app/` (PSR-4 `App\`), `public/` (the only web-exposed directory), `bin/` (installer, migrate, environment report, self-check), `config/`, `database/migrations/`, `storage/` (runtime state, outside the web root), `tests/`, `tools/dev/` (development-only tooling). See [README](../../README.md). |
-| Test harness | Defined and running: `node tools/dev/php.mjs lint` and `node tools/dev/php.mjs test` execute the real PHP on a WebAssembly runtime, so "verified" means executed. The product itself never needs Node (`O-11` closed for the server side; browser-side tests arrive with the design engine in Phase 1). |
+| Test harness | Defined and running: `node tools/dev/php.mjs lint` and `node tools/dev/php.mjs test` execute the real PHP on a WebAssembly runtime, so "verified" means executed. Current state: 141 tests / 0 failed / 497 assertions and 65 files lint-clean; the repository stays clean after a run (`storage/` holds only `.gitkeep`). The product itself never needs Node (`O-11` closed for the server side; browser-side tests arrive with the design engine in Phase 1). |
+| Background work | A database-backed queue driven by the host's cron (`bin/cron.php`), inspected with `bin/queue.php`; no daemon, no in-memory store (ADR-0006). Cron must be configured on the host - recorded as an installation step, not assumed. |
 
 ## 2. Ratified constraints (stated by the product owner)
 
@@ -112,7 +113,7 @@ silently choose one; it must ask, and record the answer in this file.
 ## 6. Rules for working in this state
 
 1. **Do not invent.** No feature, entity, endpoint, table, provider or integration may be created
-   because it "seems needed". If it is not in `C-1` .. `C-15` or a ratified ADR, it is not in scope.
+   because it "seems needed". If it is not in `C-1` .. `C-16` or a ratified ADR, it is not in scope.
 2. **Do not decide open items silently.** If implementation requires an answer to any `O-n`, stop and
    ask, stating which option you would recommend and why. Proposing is encouraged; deciding is not.
 3. **Do not create speculative structure.** No placeholder application folders, no empty modules, no
@@ -135,12 +136,16 @@ These were observed, not assumed, on 2026-09-14:
 | `python3` | 3.11.2 (available) |
 | `git` | 2.39.5 (available) |
 | `jq` | 1.6 (available) |
-| `php` | **not installed** - PHP code cannot be executed or syntax-checked here |
+| `php` | **not installed natively**, but PHP **is executed** here through the development runner (`node tools/dev/php.mjs`), which runs PHP 8.4 on a WebAssembly runtime: `lint` and `test` are real executions, not reviews (ADR-0002 keeps this tool out of the product) |
 | `composer` | **not installed** (and not required: `C-4` implies no dependency manager at runtime) |
-| Browser automation | not available |
+| Browser automation | not available; browser-side tests arrive with the design engine (Phase 1, `O-11`) |
+| PHP extensions in the runner | `pdo` with the `mysql` and `sqlite` drivers listed, plus `mbstring`, `json`, `curl`, `openssl`, `zip`, `fileinfo`, `hash`, `filter`, `gd`, `session`; `intl` absent (optional) |
+| MySQL-family connections | **cannot be executed here**: opening one aborts the whole WebAssembly runtime instead of raising a catchable exception. Never retry it; the MySQL-family branch is verified by contract-tested code (`Connection::mysqlDsn`, migrations) and must be executed on the real host (`O-20`) |
+| SQLite | fully executable - the local test engine (`O-2` provisional: MySQL-compatible for the host, SQLite for local tests) |
+| Sessions under the runner | work when a real save path is configured **and** nothing has been printed before `session_start()`; the test runner therefore buffers output (see the slice 3 report) |
+| `flock` | available; APCu **not** available (so no caching decision may depend on it) |
 
-Implication: while `php` is unavailable **and** the PHP version of the target host is unknown
-(`O-3`), backend changes cannot be executed or even syntax-checked here. That limitation must be
-stated in every report that touches PHP, and it forces `PASS WITH RISKS` at best for such work.
-The first Phase 0 deliverable is therefore a **host capability report** that closes `O-20`, `O-2`
-and `O-3`.
+Implication: backend work **is** executed here against SQLite, which is why slice 1-3 could be
+reported as verified rather than reviewed. Two things cannot be verified locally and must never be
+reported as verified: the MySQL-family engine, and anything that depends on the real host's
+configuration (`O-20`, `O-3`). Every report that touches those areas states it explicitly.

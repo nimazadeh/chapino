@@ -33,6 +33,12 @@ final class FrontControllerSmokeTest extends TestCase
             // Keep the database inside the temporary directory: a test that writes into the
             // repository leaves artifacts that later confuse a real installation.
             'database' => ['driver' => 'sqlite', 'sqlite_path' => $this->storage . '/database.sqlite'],
+            // Session storage is part of the configuration for the same reason as the database path:
+            // a test must never write into the repository it is testing.
+            'security' => [
+                'session_name' => 'chapino_smoke_session',
+                'session_save_path' => $this->storage . '/sessions',
+            ],
         ], true) . ';');
         putenv('CHAPINO_CONFIG=' . $configPath);
     }
@@ -85,6 +91,19 @@ final class FrontControllerSmokeTest extends TestCase
         $this->assertTrue($payload['ok']);
         $this->assertSame('ok', $payload['data']['status']);
         $this->assertFalse($payload['data']['capabilities']['ai_generation'], 'C-12: AI stays off');
+    }
+
+    public function testAWriteRequestWithoutATokenIsRefusedByTheRealFrontController(): void
+    {
+        // The value of this test is the wiring, not the CSRF logic: it proves the security middleware
+        // actually runs in front of the front controller in a real installation. Without it, a change
+        // to `app/middleware.php` could disable protection for every write endpoint at once, and the
+        // unit tests would still be green.
+        $response = $this->request('POST', '/api/health');
+
+        $payload = json_decode($response['body'], true);
+        $this->assertFalse($payload['ok'], 'an anonymous write must not be accepted');
+        $this->assertSame('csrf_failed', $payload['error']['code']);
     }
 
     public function testFrontControllerWorksWithoutUrlRewriting(): void

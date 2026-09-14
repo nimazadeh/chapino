@@ -44,8 +44,13 @@ return [
 
     'security' => [
         'session_name' => 'chapino_session',
-        'session_idle_timeout' => 3600,
-        'session_absolute_timeout' => 86400,
+        'session_idle_timeout' => 3600,        // idle timeout, in seconds
+        'session_absolute_timeout' => 86400,   // hard limit regardless of activity, in seconds
+        'session_save_path' => 'storage/sessions',
+        'rate_limits' => [
+            // State-changing requests from clients that are not logged in. 0 disables the limit.
+            'anonymous_write_per_hour' => 30,
+        ],
     ],
 
     'logging' => [

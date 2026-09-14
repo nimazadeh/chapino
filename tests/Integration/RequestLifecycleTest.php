@@ -35,6 +35,10 @@ final class RequestLifecycleTest extends TestCase
             // A test must never write into the repository, so the database lives in the
             // temporary directory alongside the logs.
             'database' => ['driver' => 'sqlite', 'sqlite_path' => $this->storage . '/test.sqlite'],
+            'security' => [
+                'session_name' => 'chapino_lifecycle_session',
+                'session_save_path' => $this->storage . '/sessions',
+            ],
         ]);
 
         return $app;
@@ -84,6 +88,10 @@ final class RequestLifecycleTest extends TestCase
             // report the problem instead of pretending everything is fine. Pointing the database
             // at an existing directory fails identically on every platform.
             'database' => ['driver' => 'sqlite', 'sqlite_path' => $this->storage],
+            'security' => [
+                'session_name' => 'chapino_lifecycle_session',
+                'session_save_path' => $this->storage . '/sessions',
+            ],
         ]);
 
         $response = $app->handle(Request::create('GET', '/api/health'));

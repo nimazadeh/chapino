@@ -86,6 +86,13 @@ final class Config
                 'session_name' => 'chapino_session',
                 'session_idle_timeout' => 3600,
                 'session_absolute_timeout' => 86400,
+                // A private session directory: on shared hosting the default path is shared with every
+                // other account on the server.
+                'session_save_path' => 'storage/sessions',
+                'rate_limits' => [
+                    // State-changing requests from clients that are not logged in. 0 disables it.
+                    'anonymous_write_per_hour' => 30,
+                ],
             ],
             'logging' => [
                 'level' => 'info',

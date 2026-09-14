@@ -84,11 +84,17 @@ final class Installer
         $root = $this->appRoot . '/' . ltrim((string) ($storageSettings['path'] ?? 'storage'), '/');
         $created = [];
 
-        foreach (['', '/logs', '/cache', '/uploads', '/tmp', '/backups'] as $sub) {
+        foreach (['', '/logs', '/cache', '/uploads', '/tmp', '/backups', '/sessions'] as $sub) {
             $path = $root . $sub;
             if (!is_dir($path)) {
                 if (!@mkdir($path, 0775, true) && !is_dir($path)) {
                     throw new \RuntimeException('ساخت پوشه ممکن نشد: ' . $path);
+                }
+                // Session files carry bearer secrets: only the application user may read the directory.
+                // It is created with 0700 and tightened explicitly, because umask on shared hosting
+                // often makes a new directory world-readable.
+                if ($sub === '/sessions') {
+                    @chmod($path, 0700);
                 }
                 $created[] = $path;
             }

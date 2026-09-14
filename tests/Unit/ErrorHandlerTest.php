@@ -72,6 +72,23 @@ final class ErrorHandlerTest extends TestCase
         $this->assertStringContains('pdo_mysql', $payload['error']['message'], 'the owner must learn what to enable');
     }
 
+    public function testMissingSchemaIsReportedAsASetupProblemWithTheExactCommand(): void
+    {
+        // The most likely state of a fresh upload to shared hosting: files uploaded, migrations not
+        // run. The owner must be told the command that fixes it, not shown "unexpected error".
+        $response = $this->handler()->errorResponse(new DatabaseException(
+            'ساختار پایگاه‌داده کامل نیست (جدول موردنیاز ساخته نشده است). '
+            . 'برای تکمیل نصب، دستور php bin/migrate.php را اجرا کنید.',
+            'database_schema_missing',
+            'HY000',
+        ));
+
+        $this->assertSame(503, $response->status);
+        $payload = json_decode($response->body, true);
+        $this->assertSame('setup_required', $payload['error']['code']);
+        $this->assertStringContains('migrate.php', $payload['error']['message']);
+    }
+
     public function testRuntimeDatabaseFailureStaysAGeneric500WithoutInternals(): void
     {
         $response = $this->handler()->errorResponse(new DatabaseException(

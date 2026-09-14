@@ -20,6 +20,11 @@ final class Application
     private ?ErrorHandler $errorHandler = null;
     private ?Router $router = null;
     private ?\App\Core\Database\Connection $database = null;
+    private ?\App\Core\Security\Session $session = null;
+    private ?\App\Core\Security\Csrf $csrf = null;
+    private ?\App\Core\Security\RateLimiter $rateLimiter = null;
+    private ?\App\Core\Jobs\Queue $queue = null;
+    private ?\App\Core\Jobs\JobRunner $jobRunner = null;
 
     public function __construct(private readonly string $root)
     {
@@ -68,6 +73,78 @@ final class Application
     public function database(): \App\Core\Database\Connection
     {
         return $this->database ??= \App\Core\Database\Connection::fromConfig($this->config(), $this->root);
+    }
+
+    /**
+     * True when the request reached the application over HTTPS.
+     *
+     * Only server-provided facts are trusted: the `HTTPS` server variable, or a configured URL that
+     * is explicitly https. A client-supplied `X-Forwarded-Proto` is ignored here - trusting it would
+     * let an attacker make the application believe a plain connection was secure, which weakens the
+     * session cookie (security rule). A deployment behind a reverse proxy states that in configuration
+     * instead of guessing.
+     */
+    public function isHttps(): bool
+    {
+        $https = strtolower((string) ($_SERVER['HTTPS'] ?? ''));
+        if ($https !== '' && $https !== 'off' && $https !== '0') {
+            return true;
+        }
+
+        return str_starts_with(strtolower($this->config()->string('app.url', '')), 'https://');
+    }
+
+    /**
+     * The session for this request.
+     *
+     * Not started here on purpose: the session layer decides *when* to start (a cookie is present,
+     * or the request changes state), so an anonymous page view does not create session storage.
+     */
+    public function session(): \App\Core\Security\Session
+    {
+        return $this->session ??= new \App\Core\Security\Session(
+            $this->config(),
+            $this->database(),
+            $this->logger(),
+            $this->isHttps(),
+        );
+    }
+
+    public function csrf(): \App\Core\Security\Csrf
+    {
+        return $this->csrf ??= new \App\Core\Security\Csrf($this->session());
+    }
+
+    /** Counters are namespaced per installation so two deployments sharing a database cannot collide. */
+    public function rateLimiter(): \App\Core\Security\RateLimiter
+    {
+        return $this->rateLimiter ??= new \App\Core\Security\RateLimiter(
+            $this->database(),
+            $this->config()->string('app.name', 'chapino') . '|',
+        );
+    }
+
+    public function queue(): \App\Core\Jobs\Queue
+    {
+        return $this->queue ??= new \App\Core\Jobs\Queue($this->database());
+    }
+
+    /** The job runner, with the handler registry loaded from app/Jobs/handlers.php. */
+    public function jobs(string $runnerId = 'cron'): \App\Core\Jobs\JobRunner
+    {
+        if ($this->jobRunner === null) {
+            /** @var array<string, callable> $handlers */
+            $handlers = require $this->root . '/app/Jobs/handlers.php';
+            $this->jobRunner = new \App\Core\Jobs\JobRunner(
+                $this->database(),
+                $this->queue(),
+                $this->logger(),
+                $handlers,
+                $runnerId,
+            );
+        }
+
+        return $this->jobRunner;
     }
 
     public function router(): Router
@@ -132,7 +209,7 @@ final class Application
         // repeat the same work for every middleware.
         $logger = $this->logger();
         $router = $this->router();
-        $config = $this->config();
+        $app = $this;
 
         $handler = static function (Request $request) use ($logger, $router): Response {
             $logger->info('request', [
@@ -146,7 +223,7 @@ final class Application
 
         foreach (array_reverse($middleware) as $layer) {
             $next = $handler;
-            $handler = static fn (Request $request): Response => $layer($request, $next, $config);
+            $handler = static fn (Request $request): Response => $layer($request, $next, $app);
         }
 
         return $handler($request);

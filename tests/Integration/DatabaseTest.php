@@ -59,6 +59,64 @@ final class DatabaseTest extends TestCase
         $this->assertStringContains('۱۲۳', (string) $row['body'], 'Persian digits must survive storage');
     }
 
+    public function testAQueryAgainstAMissingTableIsClassifiedAsAnIncompleteInstallation(): void
+    {
+        // This is what an unmigrated installation looks like from inside the application. It has to be
+        // recognisable, because the fix is operational ("run the migrator"), not a code change, and the
+        // error code decides whether the client is told that or shown a generic failure.
+        $exception = $this->assertThrows(
+            DatabaseException::class,
+            fn () => $this->connection()->select('SELECT * FROM a_table_that_was_never_created'),
+        );
+
+        $this->assertSame('database_schema_missing', $exception->errorCode);
+        $this->assertTrue($exception->isSetupProblem(), 'an unmigrated database is a setup problem, not a bug');
+        $this->assertStringContains('migrate.php', $exception->getMessage());
+    }
+
+    public function testMysqlDsnIsBuiltFromValidatedSettings(): void
+    {
+        // The MySQL branch cannot be exercised in the development runtime, so the DSN itself is
+        // asserted: a typo here would surface only on the real host, at install time.
+        $this->assertSame(
+            'mysql:host=db.example.ir;port=3306;dbname=chapino;charset=utf8mb4',
+            Connection::mysqlDsn([
+                'host' => 'db.example.ir',
+                'port' => 3306,
+                'name' => 'chapino',
+                'charset' => 'utf8mb4',
+            ]),
+        );
+
+        $this->assertSame(
+            'mysql:host=127.0.0.1;port=3307;dbname=chapino_test;charset=utf8mb4',
+            Connection::mysqlDsn(['host' => '127.0.0.1', 'port' => 3307, 'name' => 'chapino_test']),
+            'the documented defaults apply when a key is missing',
+        );
+    }
+
+    public function testMysqlConnectionSettingsCannotInjectExtraDsnParameters(): void
+    {
+        $unsafe = [
+            'a database name with a semicolon' => ['name' => 'chapino;unix_socket=/tmp/mysql.sock'],
+            'a database name with a quote' => ['name' => "chapino'"],
+            'a host with a semicolon' => ['host' => 'localhost;unix_socket=/tmp/x'],
+            'a host with a space' => ['host' => 'local host'],
+            'a charset with a semicolon' => ['name' => 'chapino', 'charset' => 'utf8mb4;foo=bar'],
+            'a port below the valid range' => ['name' => 'chapino', 'port' => 0],
+            'a port above the valid range' => ['name' => 'chapino', 'port' => 70000],
+        ];
+
+        foreach ($unsafe as $label => $settings) {
+            $exception = $this->assertThrows(
+                DatabaseException::class,
+                static fn () => Connection::mysqlDsn($settings),
+                $label,
+            );
+            $this->assertSame('database_config_invalid', $exception->errorCode, $label);
+        }
+    }
+
     public function testUniqueConstraintIsReportedAsADuplicateNotAServerError(): void
     {
         $db = $this->connection();
@@ -117,11 +175,16 @@ final class DatabaseTest extends TestCase
         });
 
         // A child pointing at a non-existent parent must be rejected: integrity belongs in the
-        // database, so an application bug cannot corrupt the data (database rule).
-        $this->assertThrows(
+        // database, so an application bug cannot corrupt the data (database rule). The failure must
+        // also be classified as a foreign-key problem rather than as a duplicate, otherwise callers
+        // that treat "duplicate" as a harmless business event would silently swallow it.
+        $exception = $this->assertThrows(
             DatabaseException::class,
             static fn () => $db->insert('children', ['parent_id' => 999]),
         );
+        $this->assertTrue($exception->isForeignKeyViolation());
+        $this->assertFalse($exception->isDuplicate(), 'integrity violations must not be conflated');
+        $this->assertSame('database_foreign_key', $exception->errorCode);
 
         $parentId = $db->insert('parents', ['name' => 'والد']);
         $childId = $db->insert('children', ['parent_id' => $parentId]);
