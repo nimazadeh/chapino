@@ -1,0 +1,35 @@
+# --- Secrets: never commit credentials ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+credentials.*
+*.sqlite.bak
+
+# --- Local / editor / OS noise ---
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# --- Logs, dumps, temporary artifacts ---
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.bak
+*.orig
+
+# --- Dependency and build output (populated once the stack is ratified) ---
+node_modules/
+vendor/
+dist/
+build/
+coverage/
