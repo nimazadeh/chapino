@@ -84,6 +84,14 @@ final class ErrorHandler
             return Response::error('config_error', $e->getMessage(), 503, [], $requestId);
         }
 
+        if ($e instanceof \App\Core\Database\DatabaseException && $e->isSetupProblem()) {
+            // The installation is not usable yet: answer 503 with the actionable Persian message
+            // written by the database layer, and keep the driver detail in the log only.
+            $this->logger->error('database_setup_error', ['code' => $e->errorCode, 'message' => $e->getMessage()]);
+
+            return Response::error('setup_required', $e->getMessage(), 503, [], $requestId);
+        }
+
         $this->logger->error('unhandled_exception', [
             'type' => $e::class,
             'message' => $e->getMessage(),

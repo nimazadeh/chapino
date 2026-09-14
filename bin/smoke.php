@@ -124,6 +124,49 @@ foreach ($paths as $path) {
     print_hint($response->status, $response->body);
 }
 
+// --- 3. The database and its migrations ----------------------------------------------
+// Checked after the HTTP checks so that reading a status from the SAPI above is unaffected.
+// These checks are stated as facts, not assumed: an installation whose migrations are pending
+// will fail in production at the first query, so it must fail here first.
+$databaseReported = false;
+try {
+    $config = $app->config();
+    $connection = $app->database();
+
+    $version = $connection->isSqlite()
+        ? 'SQLite ' . (string) $connection->scalar('SELECT sqlite_version()')
+        : (string) $connection->scalar('SELECT VERSION()');
+    printf("%s  %-34s driver=%s، %s\n", 'PASS', 'اتصال پایگاه‌داده', $connection->driver(), $version);
+
+    $schema = new App\Core\Database\Schema(
+        $connection,
+        $config->string('database.charset', 'utf8mb4'),
+        $config->string('database.collation', 'utf8mb4_unicode_ci'),
+    );
+    $status = (new App\Core\Database\Migrator($connection, $schema, $root . '/database/migrations'))->status();
+    $pending = $status['pending'];
+
+    if ($pending === []) {
+        printf("%s  %-34s %d اعمال‌شده، 0 در انتظار\n", 'PASS', 'مهاجرت‌های پایگاه‌داده', count($status['applied']));
+    } else {
+        $failures++;
+        printf("%s  %-34s %d در انتظار: %s\n", 'FAIL', 'مهاجرت‌های پایگاه‌داده', count($pending), implode(', ', $pending));
+        echo "      راهنما: php bin/migrate.php را اجرا کنید تا نصب کامل شود.\n";
+    }
+    $databaseReported = true;
+} catch (App\Core\Database\DatabaseException $e) {
+    $failures++;
+    printf("%s  %-34s %s\n", 'FAIL', 'اتصال پایگاه‌داده', $e->getMessage());
+    if ($e->isSetupProblem()) {
+        echo "      راهنما: php bin/check-requirements.php را اجرا کنید تا وضعیت محیط و پیکربندی را ببینید.\n";
+    }
+} catch (Throwable $e) {
+    // Includes a missing configuration: reported as a failure with a hint, never silently skipped.
+    $failures++;
+    printf("%s  %-34s %s\n", 'FAIL', 'پایگاه‌داده', $e->getMessage());
+    echo "      راهنما: اگر نصب انجام نشده است، php bin/install.php --driver=sqlite را اجرا کنید.\n";
+}
+
 printf("\n%d check(s) failed\n", $failures);
 
 exit($failures === 0 ? 0 : 1);

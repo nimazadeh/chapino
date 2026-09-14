@@ -418,6 +418,10 @@ const NEGATION_MARKERS = [
   'owner', 'ratified', 'question', 'open decision', 'banned',
   // A provisional statement is acceptable when the text itself says it is provisional.
   'assumption', 'assumed', 'to be confirmed', 'confirm', 'verify', 'unverified', 'provisional',
+  // Persian equivalents, because reports are written in Persian (see the reporting rule's language
+  // section): without these, a Persian sentence that says "unverified" still reads as a claim.
+  'تأییدنشده', 'تاییدنشده', 'تصویب‌نشده', 'تصویب نشده', 'فرضی', 'فرض اولیه', 'قطعی نشده',
+  'بررسی نشده', 'باز است', 'منتظر تصمیم',
 ];
 
 function checkPrematureStack() {
@@ -425,7 +429,23 @@ function checkPrematureStack() {
   for (const file of allDocs) {
     const text = read(file);
     const lines = text.split('\n');
+    // Fenced code blocks are quoted evidence (commands, snippets, output), not claims. A report is
+    // required to reproduce commands verbatim, so a driver name inside a fence cannot carry - and
+    // must not be forced to carry - a "provisional" qualifier. Every prose line that names a reserved
+    // technology still has to qualify itself, which is where a premature decision would actually be
+    // asserted.
+    const inFence = [];
+    let fence = false;
+    for (const line of lines) {
+      if (line.trim().startsWith('```')) {
+        inFence.push(true);
+        fence = !fence;
+        continue;
+      }
+      inFence.push(fence);
+    }
     lines.forEach((line, index) => {
+      if (inFence[index]) return;
       const lower = line.toLowerCase();
       const hit = OWNER_RESERVED_TOKENS.find((token) => new RegExp(`\\b${token}\\b`).test(lower));
       if (!hit) return;

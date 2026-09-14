@@ -9,6 +9,100 @@ use Tests\TestCase;
 
 final class RequestTest extends TestCase
 {
+    /**
+     * Builds a Request from superglobals exactly as a web server would set them.
+     *
+     * @param array<string, mixed> $server
+     * @param array<string, mixed> $get
+     */
+    private function fromGlobals(array $server, array $get = []): Request
+    {
+        $originalServer = $_SERVER;
+        $originalGet = $_GET;
+        $_SERVER = array_merge(['REMOTE_ADDR' => '203.0.113.9'], $server);
+        $_GET = $get;
+
+        try {
+            return Request::fromGlobals();
+        } finally {
+            $_SERVER = $originalServer;
+            $_GET = $originalGet;
+        }
+    }
+
+    public function testSubfolderDocumentRootPrefixIsNotPartOfTheRoute(): void
+    {
+        // XAMPP and Laragon installations live in a subfolder: htdocs/chapino/public/index.php.
+        $this->assertSame(
+            '/',
+            $this->fromGlobals([
+                'REQUEST_METHOD' => 'GET',
+                'REQUEST_URI' => '/chapino/public/',
+                'SCRIPT_NAME' => '/chapino/public/index.php',
+            ])->path,
+        );
+
+        $this->assertSame(
+            '/api/health',
+            $this->fromGlobals([
+                'REQUEST_METHOD' => 'GET',
+                'REQUEST_URI' => '/chapino/public/api/health',
+                'SCRIPT_NAME' => '/chapino/public/index.php',
+            ])->path,
+        );
+
+        // The PATH_INFO form a rewrite can produce, with the subfolder prefix present.
+        $this->assertSame(
+            '/api/health',
+            $this->fromGlobals([
+                'REQUEST_METHOD' => 'GET',
+                'REQUEST_URI' => '/chapino/public/index.php/api/health',
+                'SCRIPT_NAME' => '/chapino/public/index.php',
+            ])->path,
+        );
+    }
+
+    public function testSubfolderInstallationWithoutRewritingStillRoutes(): void
+    {
+        $request = $this->fromGlobals(
+            [
+                'REQUEST_METHOD' => 'GET',
+                'REQUEST_URI' => '/chapino/public/index.php?r=/api/health',
+                'SCRIPT_NAME' => '/chapino/public/index.php',
+            ],
+            ['r' => '/api/health'],
+        );
+
+        $this->assertSame('/api/health', $request->path);
+    }
+
+    public function testQueryStringRouteCannotClimbOutOfTheRouteSpace(): void
+    {
+        $request = $this->fromGlobals(
+            [
+                'REQUEST_METHOD' => 'GET',
+                'REQUEST_URI' => '/index.php?r=../../etc/passwd',
+                'SCRIPT_NAME' => '/index.php',
+            ],
+            ['r' => '../../etc/passwd'],
+        );
+
+        $this->assertSame('/', $request->path, 'a climbing path must be refused, not normalised into a route');
+    }
+
+    public function testPathIsUnchangedWhenNoPrefixApplies(): void
+    {
+        // A rewrite that already removed the prefix must be trusted, not double-stripped.
+        $this->assertSame(
+            '/api/health',
+            $this->fromGlobals([
+                'REQUEST_METHOD' => 'GET',
+                'REQUEST_URI' => '/api/health',
+                'SCRIPT_NAME' => '/index.php',
+            ])->path,
+        );
+    }
+
     public function testInputPrefersBodyThenQuery(): void
     {
         $request = Request::create('POST', '/api/orders', ['page' => '2'], ['color' => 'white']);

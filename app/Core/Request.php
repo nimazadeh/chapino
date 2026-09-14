@@ -86,19 +86,35 @@ final class Request
     {
         $uri = (string) ($server['REQUEST_URI'] ?? '/');
         $path = parse_url($uri, PHP_URL_PATH) ?: '/';
-        $scriptName = (string) ($server['SCRIPT_NAME'] ?? '');
+        $scriptName = str_replace('\\', '/', (string) ($server['SCRIPT_NAME'] ?? ''));
 
-        // A host may reach the front controller as /index.php (rewrite disabled),
-        // /index.php/api/orders (PATH_INFO), or through a subdirectory install.
-        // In every case the script name is a prefix of the path, not part of the route.
+        // A host may reach the front controller in four shapes, and all four are normal on shared
+        // hosting: /index.php (rewrite disabled), /index.php/api/orders (PATH_INFO), and either of
+        // those inside a subfolder - how XAMPP and Laragon installations usually look, where the
+        // project sits in htdocs/chapino and the served path is /chapino/public/...
+        //
+        // The script name, or the directory it lives in, is a deployment prefix, never part of the
+        // route. Stripping only the full script name was not enough: a request for /chapino/public/
+        // does not start with /chapino/public/index.php, so the prefix stayed in the path and every
+        // route in a subfolder installation returned 404 (found by the subfolder test).
         if ($scriptName !== '' && $scriptName !== '/' && str_starts_with($path, $scriptName)) {
             $path = substr($path, strlen($scriptName));
+        } else {
+            $base = rtrim(dirname($scriptName), '/');
+            if ($base !== '' && $base !== '.' && ($path === $base || str_starts_with($path, $base . '/'))) {
+                $path = substr($path, strlen($base));
+            }
         }
+
         if ($path === '' || $path === '/') {
             $path = '/';
         }
-        if (($path === '' || $path === '/' || $path === '/index.php') && isset($_GET['r']) && is_string($_GET['r'])) {
-            $path = $_GET['r'];
+
+        if (($path === '/' || $path === '/index.php') && isset($_GET['r']) && is_string($_GET['r'])) {
+            // The rewrite-free form carries the route in `r`. A path that tries to climb out of the
+            // route space is refused outright rather than normalised: no legitimate route needs it.
+            $requested = $_GET['r'];
+            $path = str_contains($requested, '..') ? '/' : $requested;
         }
 
         return $path;

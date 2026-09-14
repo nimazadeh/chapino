@@ -13,9 +13,14 @@ namespace App\Core;
  */
 final class Config
 {
-    /** @param array<string, mixed> $values */
-    private function __construct(private array $values)
-    {
+    /**
+     * @param array<string, mixed> $values
+     * @param string $root the directory relative paths are resolved against
+     */
+    private function __construct(
+        private array $values,
+        private readonly string $root,
+    ) {
     }
 
     /**
@@ -24,7 +29,7 @@ final class Config
     public static function load(string $root, ?array $overrides = null): self
     {
         if ($overrides !== null) {
-            return new self(array_replace_recursive(self::defaults(), $overrides));
+            return new self(array_replace_recursive(self::defaults(), $overrides), $root);
         }
 
         // An explicit path wins: hosting panels sometimes keep configuration outside the
@@ -50,7 +55,7 @@ final class Config
             );
         }
 
-        return new self(array_replace_recursive(self::defaults(), $values));
+        return new self(array_replace_recursive(self::defaults(), $values), $root);
     }
 
     /** @return array<string, mixed> */
@@ -158,6 +163,9 @@ final class Config
             return '';
         }
 
-        return str_starts_with($value, '/') ? $value : APP_ROOT . '/' . $value;
+        // Relative paths belong to the installation they are declared in, not to whatever
+        // APP_ROOT happens to be: this is what keeps a second installation (a test copy, a
+        // staging deployment) from writing into the first one's storage directory.
+        return str_starts_with($value, '/') ? $value : $this->root . '/' . $value;
     }
 }

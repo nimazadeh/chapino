@@ -32,6 +32,9 @@ final class RequestLifecycleTest extends TestCase
             'app' => ['env' => 'local', 'debug' => false],
             'logging' => ['path' => $this->storage . '/logs', 'level' => 'debug'],
             'storage' => ['path' => $this->storage],
+            // A test must never write into the repository, so the database lives in the
+            // temporary directory alongside the logs.
+            'database' => ['driver' => 'sqlite', 'sqlite_path' => $this->storage . '/test.sqlite'],
         ]);
 
         return $app;
@@ -53,6 +56,43 @@ final class RequestLifecycleTest extends TestCase
         $this->assertStringNotContains(APP_ROOT, $response->body);
         $this->assertStringNotContains('password', $response->body);
         $this->assertStringNotContains('api_key', $response->body);
+    }
+
+    public function testHealthReportsDatabaseStatusWithoutLeakingConnectionDetails(): void
+    {
+        $response = $this->app()->handle(Request::create('GET', '/api/health'));
+        $payload = json_decode($response->body, true);
+
+        $this->assertTrue($payload['data']['database']['connected'], 'the local test database must be reachable');
+        $this->assertSame('sqlite', $payload['data']['database']['driver']);
+        $this->assertSame(
+            count(glob(APP_ROOT . '/database/migrations/*.php') ?: []),
+            $payload['data']['database']['migrations_pending'],
+            'a database that has never been migrated must report every shipped migration as pending',
+        );
+
+        $this->assertStringNotContains($this->storage, $response->body, 'no filesystem path may be exposed');
+    }
+
+    public function testHealthStays200WhenTheDatabaseIsUnreachable(): void
+    {
+        $app = new Application(APP_ROOT);
+        $app->withConfig([
+            'app' => ['env' => 'local'],
+            'logging' => ['path' => $this->storage . '/logs', 'level' => 'debug'],
+            // A database that cannot be opened: a liveness endpoint must still answer, and must
+            // report the problem instead of pretending everything is fine. Pointing the database
+            // at an existing directory fails identically on every platform.
+            'database' => ['driver' => 'sqlite', 'sqlite_path' => $this->storage],
+        ]);
+
+        $response = $app->handle(Request::create('GET', '/api/health'));
+        $payload = json_decode($response->body, true);
+
+        $this->assertSame(200, $response->status);
+        $this->assertTrue($payload['ok']);
+        $this->assertFalse($payload['data']['database']['connected']);
+        $this->assertNull($payload['data']['database']['migrations_pending']);
     }
 
     public function testEveryResponseCarriesSecurityHeadersAndRequestId(): void

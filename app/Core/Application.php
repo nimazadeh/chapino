@@ -19,6 +19,7 @@ final class Application
     private ?Logger $logger = null;
     private ?ErrorHandler $errorHandler = null;
     private ?Router $router = null;
+    private ?\App\Core\Database\Connection $database = null;
 
     public function __construct(private readonly string $root)
     {
@@ -55,6 +56,18 @@ final class Application
     public function errorHandler(): ErrorHandler
     {
         return $this->errorHandler ??= new ErrorHandler($this->logger(), $this->config()->isDebug());
+    }
+
+    /**
+     * The shared database connection for this request.
+     *
+     * Created once and reused: shared hosting allows very few MySQL connections, and a second
+     * connection would also mean a second transaction context. Controllers receive this through the
+     * container instead of opening their own.
+     */
+    public function database(): \App\Core\Database\Connection
+    {
+        return $this->database ??= \App\Core\Database\Connection::fromConfig($this->config(), $this->root);
     }
 
     public function router(): Router

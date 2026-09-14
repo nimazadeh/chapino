@@ -34,7 +34,12 @@ return [
         'name' => '',
         'user' => '',
         'password' => '',
+        // utf8mb4 is required: Persian text and emoji must survive storage.
         'charset' => 'utf8mb4',
+        'collation' => 'utf8mb4_unicode_ci',
+        // Used only when driver is 'sqlite'. Relative paths are resolved from the project root,
+        // so a local installation works without touching anything else.
+        'sqlite_path' => 'storage/database.sqlite',
     ],
 
     'security' => [

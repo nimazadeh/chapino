@@ -14,13 +14,13 @@ It must never contain an assumption that has not been ratified.
 | Item | State |
 | --- | --- |
 | Product requirements | **Provided (high level).** See `C-15` and [the phase roadmap](../product/roadmap.md). Detail questions are listed in section 4. |
-| Product code | Does not exist yet. This repository contains the engineering governance layer only. |
-| Architecture decisions | Four ratified: [ADR-0001](adr/ADR-0001-browser-side-design-engine.md), [ADR-0002](adr/ADR-0002-shared-hosting-target.md), [ADR-0003](adr/ADR-0003-deferred-ai-provider-seam.md), [ADR-0004](adr/ADR-0004-iran-region-integrations.md). |
-| Technology stack | Constrained and mostly decided: vanilla HTML/CSS/JS frontend, pure PHP backend, shared hosting deployment. Database engine and PHP version still pending host facts (`O-2`, `O-3`, `O-20`). |
-| Hosting / deployment target | Decided in shape (shared PHP hosting, inside Iran), specifics pending (`O-4`, `O-20`). |
-| Integrations | ZarinPal (payments) and Kaveh Negar (SMS) ratified. No AI provider in the current scope; a seam is required (ADR-0003). |
-| Application directory layout | Not defined yet. It will be created with the requirement that needs it, in Phase 0. |
-| Test harness | Not defined - no runtime for the application stack is installed in the current sandbox (`O-11`). |
+| Product code | **Exists, Phase 0 in progress.** Slice 1 (core: configuration, routing, error handling, logging, Persian validation) and slice 2 (data layer, migrations, installer, environment report) are delivered. Reports: [slice 1](reports/2026-09-14-phase-0-slice-1-core.md), [slice 2](reports/2026-09-14-phase-0-slice-2-database.md). |
+| Architecture decisions | Five ratified: [ADR-0001](adr/ADR-0001-browser-side-design-engine.md), [ADR-0002](adr/ADR-0002-shared-hosting-target.md), [ADR-0003](adr/ADR-0003-deferred-ai-provider-seam.md), [ADR-0004](adr/ADR-0004-iran-region-integrations.md), [ADR-0005](adr/ADR-0005-data-layer-and-migrations.md). |
+| Technology stack | Constrained and mostly decided: vanilla HTML/CSS/JS frontend, pure PHP backend, shared hosting deployment. Database engine and PHP version are **provisional assumptions** until a host exists (`O-2`, `O-3`, `O-20`); the code must satisfy both while they remain assumptions. |
+| Hosting / deployment target | Shape decided (shared PHP hosting, inside Iran). **No real host exists yet**: the owner tests on localhost (XAMPP, Laragon, `php -S`), so everything is verified locally and reported as unverified on the target (`O-4`, `O-20`). |
+| Integrations | ZarinPal (payments) and Kaveh Negar (SMS) ratified. Fulfilment is outsourced to a third-party print house that is not yet chosen (`C-16`, `O-13`). No AI provider in the current scope; a seam is required (ADR-0003). |
+| Application directory layout | Defined and committed: `app/` (PSR-4 `App\`), `public/` (the only web-exposed directory), `bin/` (installer, migrate, environment report, self-check), `config/`, `database/migrations/`, `storage/` (runtime state, outside the web root), `tests/`, `tools/dev/` (development-only tooling). See [README](../../README.md). |
+| Test harness | Defined and running: `node tools/dev/php.mjs lint` and `node tools/dev/php.mjs test` execute the real PHP on a WebAssembly runtime, so "verified" means executed. The product itself never needs Node (`O-11` closed for the server side; browser-side tests arrive with the design engine in Phase 1). |
 
 ## 2. Ratified constraints (stated by the product owner)
 
@@ -43,6 +43,8 @@ These are binding. They constrain the design; they do not constitute a design.
 | `C-13` | The architecture must make it **straightforward to add an AI image-generation provider later** and switch it on without redesign. | Owner instruction |
 | `C-14` | The product is offered in **two modes: SaaS (self-serve) and B2B (business accounts)**, on one codebase. | Owner instruction |
 | `C-15` | Product shape: a **print-on-demand customisation platform** (as demonstrated in the referenced product demo, 00:00-03:44): design studio with image/text/colour tools, preview on a product mockup, save as a listing, shareable product page, checkout, order tracking. | Owner instruction + referenced demo |
+
+| `C-16` | **Fulfilment is outsourced.** Printing and shipping are done by a third-party print house - not by the owner's own business - and that print house is **not chosen yet**. Fulfilment must therefore be a pluggable, configuration-driven integration with a documented contract, and no feature may assume a self-operated print shop. V1 product scope is **t-shirt only**. | Owner instruction (2026-09-14) |
 
 Consequences that follow directly from these constraints and are therefore also binding:
 
@@ -85,10 +87,10 @@ silently choose one; it must ask, and record the answer in this file.
 | `O-7` | Browsers and devices that must be supported (including older Android WebViews common in Iran) | **open** | JavaScript feature budget, canvas behaviour, testing matrix | Phase 1, 2 |
 | `O-8` | Money rules: currency, rounding, pricing, taxes, refunds | **partially answered** by `C-10`; commercial model still `open` (see `O-15`) | Exact types, financial correctness, invoicing | Phase 5 |
 | `O-9` | Personal data policy: what is stored, retention, deletion, consent | **open** | Schema, retention, deletion, backups | Phase 4 |
-| `O-10` | Traffic, data volume and concurrency expectations | **open** | Indexing, caching, architecture decisions | Phase 0, 7 |
+| `O-10` | Traffic, data volume and concurrency expectations, and whether B2B is sold in the same offer as SaaS | **open - options presented to the owner on 2026-09-14, awaiting a choice.** Nothing is decided: the platform must stay usable at the smallest scale and must not hard-code a B2B promise into pricing, onboarding or the landing page until the owner decides | Indexing, caching, architecture decisions, B2B scope | Phase 0, 6, 7 |
 | `O-11` | Test tooling for PHP and for the browser, and how it is installed on a shared host | **open** | Whether any claim can be automatically verified | Phase 0, every phase |
 | `O-12` | Non-functional targets: latency budget, uptime expectation, backup/recovery objectives | **open** | Release criteria, performance work | Phase 9 |
-| `O-13` | Fulfilment and shipping: who prints, who ships, and whether postal/tracking integration is in scope | **open** | Order model, statuses, notifications, Phase 7 scope | Phase 5, 7 |
+| `O-13` | Fulfilment and shipping: who prints, who ships, and whether postal/tracking integration is in scope | **partially answered (2026-09-14)** - the printer is a **third-party print house, not the owner's business**; the specific print house is still unchosen; v1 is t-shirt only. Consequence: fulfilment stays a pluggable integration behind a documented contract (`C-16`), and order statuses must not encode one provider's workflow | Order model, statuses, notifications, Phase 7 scope | Phase 5, 7 |
 | `O-14` | Print output contract | **decided (2026-09-14), provisional values:** first product is the **t-shirt**; print areas front/back **30x40 cm**, sleeve **10x10 cm**; **300 DPI**; output **PNG with transparency**; **RGB** colour. Every value is configuration-driven, so the print shop's real numbers can replace them without code changes | The design engine's export contract and print fidelity | Phase 1, 2 |
 | `O-15` | Commercial model and B2B shape | **commercial model decided (2026-09-14): hybrid** - a free base plan with commission on sales plus a paid professional subscription. B2B structural shape (organizations, sub-users, private catalogue, price lists, white-label) is still **open** and is a Phase 6 gate | Multi-tenancy design, permissions, pricing | Phase 3 (plans/quotas), Phase 6 (B2B shape) |
 | `O-16` | Fonts available in the studio, and their licensing for embedding and print output | **open** | Studio text tool, output legality, asset size | Phase 1, 2 |

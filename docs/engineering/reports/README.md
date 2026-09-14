@@ -39,3 +39,4 @@ from [../templates/report.md](../templates/report.md).
 | 2026-09-14 | [Engineering operating system bootstrap](2026-09-14-engineering-os-bootstrap.md) | PASS WITH RISKS | Governance layer bootstrap (no product code) |
 | 2026-09-14 | [Product constraints, ADRs and phase roadmap](2026-09-14-product-constraints-and-roadmap.md) | PASS WITH RISKS | Owner decisions recorded; roadmap defined (no product code) |
 | 2026-09-14 | [Phase 0, slice 1: application core](2026-09-14-phase-0-slice-1-core.md) | PASS WITH RISKS | Application core, Persian validation, tests, install self-check |
+| 2026-09-14 | [Phase 0, slice 2: data layer, migrations, installer](2026-09-14-phase-0-slice-2-database.md) | PASS WITH RISKS | PDO data layer (sqlite/mysql), schema builder, versioned migrations, installer, environment report |

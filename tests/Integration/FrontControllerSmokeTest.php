@@ -30,6 +30,9 @@ final class FrontControllerSmokeTest extends TestCase
             'app' => ['env' => 'local', 'debug' => false],
             'storage' => ['path' => $this->storage],
             'logging' => ['path' => $this->storage . '/logs', 'level' => 'debug'],
+            // Keep the database inside the temporary directory: a test that writes into the
+            // repository leaves artifacts that later confuse a real installation.
+            'database' => ['driver' => 'sqlite', 'sqlite_path' => $this->storage . '/database.sqlite'],
         ], true) . ';');
         putenv('CHAPINO_CONFIG=' . $configPath);
     }
@@ -101,6 +104,33 @@ final class FrontControllerSmokeTest extends TestCase
         $this->assertFalse($payload['ok'], 'an unknown route must not look like a success');
         $this->assertSame('not_found', $payload['error']['code']);
         $this->assertStringContains('پیدا نشد', $payload['error']['message']);
+    }
+
+    public function testFrontControllerWorksInASubfolderDocumentRoot(): void
+    {
+        // How XAMPP and Laragon installations usually look: the project sits in a subfolder, so the
+        // request path carries a prefix that must not be treated as part of the route
+        // (htdocs/chapino/public/index.php serves /chapino/public/...).
+        $response = $this->request('GET', '/chapino/public/', [], ['SCRIPT_NAME' => '/chapino/public/index.php']);
+
+        $this->assertStringContains('چاپینو', $response['body'], 'the landing page must be served under a subfolder');
+
+        $api = $this->request('GET', '/chapino/public/api/health', [], ['SCRIPT_NAME' => '/chapino/public/index.php']);
+        $payload = json_decode($api['body'], true);
+        $this->assertSame('ok', $payload['data']['status'], 'the API must resolve under a subfolder as well');
+
+        // Without rewriting, a subfolder installation arrives as /chapino/public/index.php?r=/api/health.
+        $rewriteFree = $this->request(
+            'GET',
+            '/chapino/public/index.php',
+            ['r' => '/api/health'],
+            ['SCRIPT_NAME' => '/chapino/public/index.php'],
+        );
+        $this->assertSame(
+            'ok',
+            json_decode($rewriteFree['body'], true)['data']['status'],
+            'a subfolder installation without mod_rewrite must still route',
+        );
     }
 
     public function testHtmlLandingPageIsServedInPersianAndRtl(): void
