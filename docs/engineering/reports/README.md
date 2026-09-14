@@ -37,3 +37,4 @@ from [../templates/report.md](../templates/report.md).
 | Date | Report | Status | Scope |
 | --- | --- | --- | --- |
 | 2026-09-14 | [Engineering operating system bootstrap](2026-09-14-engineering-os-bootstrap.md) | PASS WITH RISKS | Governance layer bootstrap (no product code) |
+| 2026-09-14 | [Product constraints, ADRs and phase roadmap](2026-09-14-product-constraints-and-roadmap.md) | PASS WITH RISKS | Owner decisions recorded; roadmap defined (no product code) |

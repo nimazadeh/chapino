@@ -18,4 +18,7 @@ An ADR never records what has not been decided, and never a decision reserved to
 
 | ADR | Title | Status | Date |
 | --- | --- | --- | --- |
-| - | none yet - the repository is in bootstrap state | - | - |
+| [ADR-0001](ADR-0001-browser-side-design-engine.md) | Browser-side design engine | accepted | 2026-09-14 |
+| [ADR-0002](ADR-0002-shared-hosting-target.md) | Shared-hosting deployment target | accepted | 2026-09-14 |
+| [ADR-0003](ADR-0003-deferred-ai-provider-seam.md) | AI image generation as a disabled, provider-agnostic seam | accepted | 2026-09-14 |
+| [ADR-0004](ADR-0004-iran-region-integrations.md) | ZarinPal for payments and Kaveh Negar for SMS, verified server-side | accepted | 2026-09-14 |

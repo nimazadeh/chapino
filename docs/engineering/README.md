@@ -7,6 +7,9 @@ for a new engineer (human or agent) joining the project with no prior context.
 - **Constitution:** [`AGENTS.md`](../../AGENTS.md) - read this first.
 - **Rules (always on):** [`.agents/rules/`](../../.agents/rules/)
 - **Workflows (executable):** [`.agents/skills/`](../../.agents/skills/)
+- **Product roadmap (phases):** [docs/product/roadmap.md](../product/roadmap.md)
+- **Product scope:** [docs/product/scope.md](../product/scope.md)
+- **Open questions and defaults:** [docs/product/open-questions.md](../product/open-questions.md)
 - **Project context and open decisions:** [project-context.md](project-context.md)
 - **Task reports:** [reports/](reports/)
 - **Templates:** [templates/](templates/)
@@ -58,6 +61,7 @@ not describe steps; they describe what must be true. Located in [`.agents/rules/
 | Rule | File | What it governs | Load it when |
 | --- | --- | --- | --- |
 | Architecture | [architecture.md](../../.agents/rules/architecture.md) | Boundaries, layering, modularity, coupling, dependency direction, contracts, compatibility, ADRs | You touch boundaries, modules, dependencies or contracts, or add a subsystem |
+| Design engine | [design-engine.md](../../.agents/rules/design-engine.md) | The design document contract, renderer purity, coordinate/resolution model, print-export contract, editor interaction rules | Any design document, renderer, canvas, editor, mockup or print-export change |
 | Backend | [backend.md](../../.agents/rules/backend.md) | API design, business logic, validation, auth, middleware, transactions, jobs, caching, errors, logging, rate limiting, the defect-hunt list | Any server-side change |
 | Frontend | [frontend.md](../../.agents/rules/frontend.md) | Markup, component structure, state, API integration, forms, accessibility, responsiveness, the ten UI states, client performance | Any HTML/CSS/browser-JS change |
 | Database | [database.md](../../.agents/rules/database.md) | Schema design, keys, constraints, indexes, queries, migration safety, data handling and retention | Any schema, migration, index, constraint or query change |
@@ -210,7 +214,7 @@ system exists to prevent.
 **Boundary changes require owner input.** Constraints stated by the product owner (language,
 technology, deployment region) may not be changed, loosened or worked around by an agent. Raise the
 question instead. The validator warns when a rule file appears to decide something that is reserved
-to the owner - see [project-context.md](project-context.md#3-open-decisions-must-be-raised-not-assumed).
+to the owner - see [project-context.md](project-context.md#4-open-decisions-must-be-raised-not-assumed).
 
 ## 10. Quick start for a new engineer
 

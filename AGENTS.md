@@ -13,18 +13,22 @@ focused rule files under [`.agents/rules/`](.agents/rules/) and executable workf
 
 ---
 
-## 1. Owner-stated constraints (recorded, not yet ratified)
+## 1. Owner-stated constraints (ratified ledger)
 
-The product owner has stated the following. They are **constraints**, not architecture:
+The binding constraints and the open decisions that accompany them live in one place:
+[`docs/engineering/project-context.md`](docs/engineering/project-context.md) (`C-1` .. `C-15`,
+`O-1` .. `O-20`). Read it before any design decision.
 
-- Persian (fa-IR) is the only user-interface language. Layout is RTL-first.
-- Frontend is vanilla HTML, CSS and JavaScript. No frontend framework.
-- Backend is pure PHP. No backend framework.
-- The product is intended for use inside Iran only.
+In brief: Persian-only RTL UI; vanilla HTML/CSS/JS frontend; pure PHP backend used for backend
+concerns only; **all design processing in the browser**; deployment must work on **commodity shared
+PHP hosting** inside Iran; payments via ZarinPal; SMS via Kaveh Negar; **no AI provider in the
+current scope**, but a disabled, provider-agnostic seam is required; the product serves both
+**SaaS** and **B2B** modes. The delivery sequence is defined in
+[`docs/product/roadmap.md`](docs/product/roadmap.md) - work proceeds phase by phase, and a phase does
+not start before the previous phase's exit criteria pass.
 
-Everything else is undecided: application domain, feature scope, database engine, hosting model,
-storage, integrations, third-party services, deployment pipeline. **Do not infer them.**
-See [`docs/engineering/project-context.md`](docs/engineering/project-context.md).
+Everything not in the ledger, in a ratified ADR, or in a product requirement document is **not in
+scope**. Do not infer it.
 
 ---
 
@@ -133,6 +137,7 @@ Rules are always-on obligations. Load the relevant rule before touching the area
 | Rule ID | File | Load when |
 | --- | --- | --- |
 | `architecture` | [.agents/rules/architecture.md](.agents/rules/architecture.md) | Any change to boundaries, modules, dependencies, contracts, or the addition of a subsystem |
+| `design-engine` | [.agents/rules/design-engine.md](.agents/rules/design-engine.md) | Any design document, renderer, canvas, editor, mockup preview or print-export work |
 | `backend` | [.agents/rules/backend.md](.agents/rules/backend.md) | Any server-side code: endpoints, business logic, validation, auth, jobs, caching, logging |
 | `frontend` | [.agents/rules/frontend.md](.agents/rules/frontend.md) | Any HTML, CSS or browser JavaScript work, or any UI behaviour |
 | `database` | [.agents/rules/database.md](.agents/rules/database.md) | Any schema, migration, index, constraint or query change |
