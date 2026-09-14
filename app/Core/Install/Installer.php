@@ -8,6 +8,8 @@ use App\Core\Clock;
 use App\Core\Database\Connection;
 use App\Core\Database\Migrator;
 use App\Core\Database\Schema;
+use App\Core\Database\Seeder;
+use App\Core\Settings;
 
 /**
  * Writes the configuration and prepares the database, without shell access and without Composer.
@@ -129,6 +131,23 @@ final class Installer
         $migrator = new Migrator($connection, $schema, $this->appRoot . '/database/migrations');
 
         return $migrator->up();
+    }
+
+    /**
+     * Applies the default settings after migrating.
+     *
+     * Kept separate from `migrate()` on purpose: migrations change the schema and are recorded,
+     * seeds fill in values and are create-only, so an operator can re-run one without the other.
+     * The installer runs both because a fresh installation needs both.
+     *
+     * @param array<string, mixed> $databaseSettings
+     * @return array{added: list<string>, kept: list<string>, owner_input: list<string>}
+     */
+    public function seed(array $databaseSettings): array
+    {
+        $connection = Connection::fromSettings($databaseSettings, $this->appRoot);
+
+        return (new Seeder(new Settings($connection), $this->appRoot . '/database/seeds'))->run();
     }
 
     /**

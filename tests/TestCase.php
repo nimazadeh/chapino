@@ -31,11 +31,26 @@ abstract class TestCase
     public function runTest(string $method): void
     {
         $this->assertions = 0;
+
+        // Environment isolation. A test that points the application at its own fixture configuration
+        // (CHAPINO_CONFIG) must not change how the NEXT test loads its configuration: without this
+        // snapshot, a fixture path from an earlier test leaks into every later one, and a test that
+        // loads the configuration from a directory passes alone and fails in the suite. That is not
+        // a flake to be retried - it is one test changing another test's inputs.
+        $environment = [];
+        foreach (['CHAPINO_CONFIG'] as $name) {
+            $environment[$name] = getenv($name);
+        }
+
         $this->setUp();
         try {
             $this->{$method}();
         } finally {
             $this->tearDown();
+            foreach ($environment as $name => $value) {
+                // `false` means "was not set"; putenv() with only the name removes the variable.
+                $value === false ? putenv($name) : putenv($name . '=' . $value);
+            }
             $this->cleanupTemp();
         }
     }

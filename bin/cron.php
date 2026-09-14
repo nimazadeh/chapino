@@ -39,6 +39,7 @@ App\Core\Clock::init();
 
 use App\Core\Application;
 use App\Core\Clock;
+use App\Core\Settings;
 
 $options = ['limit' => 20, 'seconds' => 50, 'queue' => '', 'status' => false];
 foreach (array_slice($argv, 1) as $argument) {
@@ -112,6 +113,20 @@ try {
         $counts['running'],
         $counts['failed'],
     );
+
+    // Heartbeat. On shared hosting, "is the cron job actually running?" cannot be asked of PHP from
+    // the outside: there is no scheduler API, no daemon to inspect, and a cron entry that was saved
+    // but never fired looks identical to one that runs every minute. Recording the last run turns
+    // that question into a fact the capability report can print (bin/check-requirements.php).
+    // Failure here must never fail the run: a missing heartbeat is a reporting problem, not a
+    // reason to stop processing jobs.
+    try {
+        $settings = new Settings($app->database());
+        $settings->set('cron.last_run_at', Clock::nowIso());
+        $settings->set('cron.last_run_jobs', (string) $summary['claimed']);
+    } catch (Throwable $e) {
+        fwrite(STDERR, 'هشدار: ثبت زمان اجرای کران ممکن نشد — ' . $e->getMessage() . "\n");
+    }
 
     // Housekeeping runs every time: deleting an already-absent row is a no-op, so this is idempotent.
     $queue->push('maintenance.purge_rate_limits', [], ['queue' => 'maintenance']);

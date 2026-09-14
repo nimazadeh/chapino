@@ -117,17 +117,31 @@ try {
 
     echo "۴) اجرای مهاجرت‌ها\n";
     $applied = $installer->migrate($databaseSettings);
+    $seeded = $installer->seed($databaseSettings);
     echo $applied === []
         ? "   هیچ مهاجرت در انتظاری وجود نداشت (نصب از قبل کامل است)\n"
         : '   اجرا شد: ' . implode(', ', $applied) . "\n";
 
+    echo "۵) مقدارگذاری تنظیمات پیش‌فرض\n";
+    printf(
+        "   %d تنظیم افزوده شد، %d از قبل موجود بود (دست‌نخورده ماند)\n",
+        count($seeded['added']),
+        count($seeded['kept']),
+    );
+    if ($seeded['owner_input'] !== []) {
+        echo "   این کلیدها عمداً خالی مانده‌اند و منتظر تصمیم شماست:\n";
+        foreach ($seeded['owner_input'] as $key) {
+            echo "      • {$key}\n";
+        }
+    }
+
     if (!$options['skip-requirements']) {
-        echo "۵) بررسی نیازمندی‌ها\n";
+        echo "۶) بررسی نیازمندی‌ها\n";
         $config = Config::load($root);
         $checker = new RequirementsChecker($root, $config);
         $failed = 0;
         foreach ($checker->run() as $check) {
-            if ($check['required'] && !$check['ok']) {
+            if ($check['kind'] === 'required' && !$check['ok']) {
                 $failed++;
                 printf("   [مورد نیاز] %s: %s\n", $check['name'], $check['detail']);
             }
@@ -140,6 +154,7 @@ try {
     echo "\nنصب کامل شد. برای بررسی نهایی اجرا کنید:\n";
     echo "   php bin/smoke.php\n";
     echo "   php bin/migrate.php --status\n";
+    echo "   php bin/seed.php --status\n";
     exit(0);
 } catch (Throwable $e) {
     fwrite(STDERR, "\nنصب با خطا متوقف شد:\n   " . $e->getMessage() . "\n");

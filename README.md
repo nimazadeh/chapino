@@ -4,12 +4,13 @@
 > (configuration, request lifecycle, routing, error handling, logging, Persian validation), the data
 > layer with versioned migrations and an installer that needs no shell, the security foundation
 > (session and cookie policy, CSRF, database-backed rate limiting) with a database-backed job queue
-> driven by cron, and the RTL design system (design tokens, a self-hosted Persian font, base
-> components, the base script, a server-rendered page layer and a development-only style guide at
-> `/design-system`). Product features do not exist yet. The delivery sequence is in
-> [docs/product/roadmap.md](docs/product/roadmap.md); what remains in Phase 0 is the schema seed and
-> the host capability report, the browser-side test harness (pending `O-11`) and the installation
-> runbook.
+> driven by cron, the RTL design system (design tokens, a self-hosted Persian font, base components,
+> the base script, a server-rendered page layer and a development-only style guide at
+> `/design-system`), and the default settings of a fresh installation, seeded create-only so an
+> operator's own values are never overwritten. Product features do not exist yet. The delivery
+> sequence is in [docs/product/roadmap.md](docs/product/roadmap.md); what remains in Phase 0 is the
+> browser-side test harness (pending `O-11`), the installation runbook, and running the capability
+> report on the real host (`O-20`).
 
 A print-on-demand customisation platform for Iran: a user builds a design in the browser, previews it
 on a product mockup, publishes it as a shareable product page, and an order is placed and paid for
@@ -41,9 +42,10 @@ app/               application code (outside the web root)
 config/            config.example.php (committed) ; config.php (never committed)
 storage/           writable runtime directory: logs, cache, uploads, backups (never committed)
 tests/             dependency-free test suite (tests/run.php)
-bin/               CLI entry points: install.php, migrate.php, check-requirements.php,
-                   smoke.php (installation self-check), cron.php (runs the job queue),
-                   queue.php (inspect and retry jobs)
+bin/               CLI entry points: install.php, migrate.php, seed.php (default settings,
+                   create-only), check-requirements.php (capability report), smoke.php
+                   (installation self-check), cron.php (runs the job queue), queue.php
+                   (inspect and retry jobs)
 tools/dev/         development-only PHP runner - never part of the product
 docs/              engineering system, product scope, roadmap, reports
 ```
@@ -67,7 +69,11 @@ node tools/dev/php.mjs test                    # run the test suite
 node tools/dev/php.mjs run bin/smoke.php --config=/path/to/config.php   # installation self-check
 node tools/dev/php.mjs run bin/cron.php                                # run queued jobs once
 node tools/dev/php.mjs run bin/queue.php --status                      # queue state for the operator
+node tools/dev/php.mjs run bin/seed.php --status                       # what this installation holds
 ```
+
+Note for copied installations: `tools/dev/php.mjs run` resolves a relative script path against the
+repository root, so run a script from another directory by absolute path.
 
 On a host with native PHP, the equivalent commands are:
 
@@ -81,9 +87,15 @@ php bin/smoke.php --config=/path/config.php
 ```bash
 php bin/check-requirements.php                   # what this host supports, before anything is written
 php bin/install.php --driver=sqlite --url=http://localhost:8080
+php bin/seed.php --status                        # the defaults this installation holds (writes nothing)
 php bin/smoke.php                                # should report 0 failures
 php bin/cron.php                                 # run the queue once, as the host's cron would
 ```
+
+`php bin/check-requirements.php --json > host-facts.json` records the environment facts in one file;
+those facts are what fill `O-20` when this runs on the real host. The report separates three kinds of
+line: `FAIL` (the product cannot run), `WARN` (a feature degrades) and `FACT` (an observed value, not
+a judgement).
 
 `bin/install.php` writes `config/config.php` (refusing to overwrite an existing one without
 `--force`), creates the writable runtime directories - `storage/sessions` with mode `0700`, because
