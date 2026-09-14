@@ -57,6 +57,17 @@ final class Session implements SessionStore
             return;
         }
 
+        // Headers already sent: nothing below can work. PHP refuses to change session settings, and
+        // session_start() fails, so the honest answer is one clear exception - not a screenful of
+        // `ini_set` warnings followed by a session that silently did not start.
+        if (session_status() !== PHP_SESSION_ACTIVE && headers_sent($file, $line)) {
+            throw new SessionException(
+                'نشست قابل شروع نیست چون خروجی پیش از شروع نشست ارسال شده است '
+                . '(این پیام برای برنامه‌نویس است و باید گزارش شود)',
+                'session_headers_sent',
+            );
+        }
+
         // PHP refuses to change session settings while a session is active, so configuration happens
         // only when we are the ones starting it. An already-active session is adopted instead:
         // in production that happens when `session.auto_start` is enabled on the host, which is
@@ -73,14 +84,6 @@ final class Session implements SessionStore
         }
 
         if (session_status() !== PHP_SESSION_ACTIVE) {
-            if (headers_sent($file, $line)) {
-                throw new SessionException(
-                    'نشست قابل شروع نیست چون خروجی پیش از شروع نشست ارسال شده است '
-                    . '(این پیام برای برنامه‌نویس است و باید گزارش شود)',
-                    'session_headers_sent',
-                );
-            }
-
             if (!@session_start()) {
                 throw new SessionException(
                     'نشست کاربر ایجاد نشد. دسترسی نوشتن پوشه نشست‌ها و تنظیمات PHP را بررسی کنید.',

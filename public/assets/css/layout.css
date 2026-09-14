@@ -1,0 +1,84 @@
+/* ============================================================================
+   Layout - the page shell: header, main region, footer.
+   ----------------------------------------------------------------------------
+   Kept apart from components.css on purpose: this file positions regions, it
+   does not style a control. A component that needs the shell to change is a
+   smell; a new region belongs here.
+   ========================================================================== */
+
+body {
+  /* The footer stays at the bottom even on a short page: a one-line 404 page
+     with a floating footer looks broken. */
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+.page {
+  flex: 1;
+  padding-block: var(--space-6) var(--space-8);
+}
+
+/* --- Header --------------------------------------------------------------- */
+.site-header {
+  background: var(--color-surface);
+  border-block-end: var(--border-width) solid var(--color-border);
+  position: sticky;
+  inset-block-start: 0;
+  z-index: var(--z-sticky);
+}
+
+.site-header .container {
+  min-height: 3.5rem;
+}
+
+.site-brand {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.site-brand:hover {
+  color: var(--color-brand-600);
+}
+
+.nav-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-list a {
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.nav-list a:hover {
+  color: var(--color-brand-600);
+  text-decoration: underline;
+}
+
+/* --- Footer --------------------------------------------------------------- */
+.site-footer {
+  background: var(--color-surface);
+  border-block-start: var(--border-width) solid var(--color-border);
+  padding-block: var(--space-5);
+}
+
+.site-footer p:last-child {
+  margin-block-end: 0;
+}
+
+/* --- Responsive ----------------------------------------------------------
+   Breakpoints are the three declared in tokens.css. Mobile is the base case
+   (the audience is phone-first), so the media queries only add room for larger
+   screens - never take behaviour away from the phone. */
+@media (min-width: 40rem) {
+  .page {
+    padding-block: var(--space-7) var(--space-9);
+  }
+}

@@ -177,6 +177,58 @@ final class RequestTest extends TestCase
         $this->assertSame('/api/orders', $request->path);
     }
 
+    public function testTheDeploymentPrefixIsKnownSoLinksCanBeBuilt(): void
+    {
+        // Every asset URL and internal link needs this value. Getting it wrong is invisible on a
+        // developer machine (document root = project) and breaks the whole interface on the
+        // XAMPP/Laragon layout, where the app is served from a subfolder.
+        $this->assertSame(
+            '/chapino/public',
+            $this->fromGlobals([
+                'REQUEST_METHOD' => 'GET',
+                'REQUEST_URI' => '/chapino/public/',
+                'SCRIPT_NAME' => '/chapino/public/index.php',
+            ])->basePath(),
+        );
+
+        $this->assertSame(
+            '',
+            $this->fromGlobals([
+                'REQUEST_METHOD' => 'GET',
+                'REQUEST_URI' => '/api/health',
+                'SCRIPT_NAME' => '/index.php',
+            ])->basePath(),
+            'a document-root install has no prefix',
+        );
+
+        $this->assertSame(
+            '',
+            $this->fromGlobals(['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/'])->basePath(),
+            'no SCRIPT_NAME means no prefix, never a guessed one',
+        );
+
+        // Windows hosts report the script name with backslashes; the prefix must not leak them into
+        // a URL.
+        $this->assertSame(
+            '/shop',
+            $this->fromGlobals([
+                'REQUEST_METHOD' => 'GET',
+                'REQUEST_URI' => '/shop/api/health',
+                'SCRIPT_NAME' => '\\shop\\index.php',
+            ])->basePath(),
+        );
+
+        // A trailing slash in SCRIPT_NAME must not produce a double slash in every link.
+        $this->assertSame(
+            '/shop',
+            $this->fromGlobals([
+                'REQUEST_METHOD' => 'GET',
+                'REQUEST_URI' => '/shop/',
+                'SCRIPT_NAME' => '/shop/',
+            ])->basePath(),
+        );
+    }
+
     public function testInvalidRemoteAddressFallsBackSafely(): void
     {
         $server = ['REQUEST_METHOD' => 'GET', 'REQUEST_URI' => '/', 'REMOTE_ADDR' => 'not-an-ip'];

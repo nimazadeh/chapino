@@ -107,6 +107,12 @@ final class RateLimiterTest extends TestCase
 
     public function testPurgeRemovesOnlyExpiredWindows(): void
     {
+        // Windows are aligned to their own size, so "the 3600-second window is still open" is only
+        // true if the clock starts at a boundary: starting mid-window would put the expiry less than
+        // the 120 seconds this test advances, and the test would pass or fail depending on the wall
+        // clock it happened to run at. Freezing at an exact hour boundary removes that.
+        Clock::freeze(1_700_000_000 - (1_700_000_000 % 3600));
+
         $this->limiter->hit('old', 'key-a', 5, 60);
         $this->limiter->hit('fresh', 'key-b', 5, 3600);
 

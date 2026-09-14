@@ -20,6 +20,12 @@ declare(strict_types=1);
  *      read from the Response value. Reading the status from the SAPI again would be wrong:
  *      once this script has printed anything, PHP refuses to set response headers, so the
  *      SAPI value would silently stay 200 - a check that cannot fail is not a check.
+ *   3. A path with no defined expectation is reported as INFO, never as PASS - and a server error
+ *      is a failure for any path. A self-check that calls an unknown status "pass" teaches the
+ *      operator to ignore it.
+ *   4. Every response is collected BEFORE anything is printed. A request that is handled after this
+ *      script has printed cannot start a session ("headers already sent"), so a tool that prints as
+ *      it goes would report failures that a real web request never has.
  */
 
 $root = dirname(__DIR__);
@@ -80,48 +86,74 @@ try {
     $_GET = $originalGet;
 }
 
-if ($frontStatus !== 0) {
-    $expected = $expectedStatus[$firstPath] ?? null;
-    $ok = $expected === null || $frontStatus === $expected;
-    if (!$ok) {
-        $failures++;
-    }
-    printf(
-        "%s  front controller (public/index.php) %-22s status=%d%s  bytes=%d\n",
-        $ok ? 'PASS' : 'FAIL',
-        $firstPath,
-        $frontStatus,
-        $expected !== null ? " (expected {$expected})" : '',
-        strlen($frontBody),
-    );
-    print_hint($frontStatus, $frontBody);
+// Everything is collected first; the report is printed at the end. See note 4 above.
+$frontExpected = $expectedStatus[$firstPath] ?? null;
+$frontOk = $frontStatus === 0 ? false : ($frontExpected === null || $frontStatus === $frontExpected);
+if ($frontStatus !== 0 && !$frontOk) {
+    $failures++;
 }
 
 // --- 2. Every remaining path through the same application ----------------------------
+$results = [];
 foreach ($paths as $path) {
     try {
         $response = $app->handle(App\Core\Request::create('GET', $path));
     } catch (\Throwable $e) {
         $failures++;
-        fwrite(STDERR, sprintf("FAIL  %-34s threw %s: %s\n", $path, $e::class, $e->getMessage()));
+        $results[] = ['path' => $path, 'label' => 'FAIL', 'detail' => sprintf(
+            'threw %s: %s',
+            $e::class,
+            $e->getMessage(),
+        )];
+
         continue;
     }
 
     $expected = $expectedStatus[$path] ?? null;
-    $ok = $expected === null || $response->status === $expected;
+
+    // No expectation: still a failure if the application answered with a server error, because no
+    // path may produce a 5xx in a healthy installation.
+    $serverError = $response->status >= 500;
+    $ok = $expected === null ? !$serverError : $response->status === $expected;
     if (!$ok) {
         $failures++;
     }
 
+    $results[] = [
+        'path' => $path,
+        'label' => $expected !== null ? ($ok ? 'PASS' : 'FAIL') : ($serverError ? 'FAIL' : 'INFO'),
+        'detail' => sprintf(
+            'status=%d%s  bytes=%d',
+            $response->status,
+            $expected !== null ? " (expected {$expected})" : ' (no expectation defined)',
+            strlen($response->body),
+        ),
+        'body' => $response->body,
+        'status' => $response->status,
+    ];
+}
+
+// --- 3. The report -----------------------------------------------------------------------
+if ($frontStatus !== 0) {
     printf(
-        "%s  %-34s status=%d%s  bytes=%d\n",
-        $ok ? 'PASS' : 'FAIL',
-        $path,
-        $response->status,
-        $expected !== null ? " (expected {$expected})" : '',
-        strlen($response->body),
+        "%s  front controller (public/index.php) %-22s status=%d%s  bytes=%d\n",
+        $frontOk ? 'PASS' : 'FAIL',
+        $firstPath,
+        $frontStatus,
+        $frontExpected !== null ? " (expected {$frontExpected})" : '',
+        strlen($frontBody),
     );
-    print_hint($response->status, $response->body);
+    print_hint($frontStatus, $frontBody);
+}
+
+foreach ($results as $result) {
+    printf("%s  %-34s %s\n", $result['label'], $result['path'], $result['detail']);
+
+    if (isset($result['body'])) {
+        print_hint((int) $result['status'], (string) $result['body']);
+    } else {
+        echo '      ' . $result['detail'] . "\n";
+    }
 }
 
 // --- 3. The database and its migrations ----------------------------------------------

@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Controllers\DesignSystemController;
 use App\Controllers\HealthController;
+use App\Controllers\HomeController;
 use App\Core\Application;
 use App\Core\Router;
 
@@ -14,12 +16,12 @@ use App\Core\Router;
  * by the phase that builds them.
  */
 return static function (Router $router, Application $app): void {
-    $router->get('/', static fn () => App\Core\Response::html(
-        '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8">'
-        . '<title>چاپینو</title><meta name="viewport" content="width=device-width, initial-scale=1">'
-        . '</head><body><main><h1>چاپینو</h1>'
-        . '<p>سامانه در حال راه‌اندازی است.</p></main></body></html>',
-    ));
+    $router->get('/', static fn ($request) => (new HomeController($app))->show($request));
 
     $router->get('/api/health', static fn ($request, $params) => (new HealthController($app))->show($request));
+
+    // Development-only: the style guide refuses to serve itself when app.env is production, so the
+    // route can be registered unconditionally and cannot be forgotten during a deployment.
+    $router->get('/design-system', static fn ($request) => (new DesignSystemController($app))->show($request));
+    $router->post('/design-system', static fn ($request) => (new DesignSystemController($app))->submit($request));
 };

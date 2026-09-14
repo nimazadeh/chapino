@@ -1,0 +1,235 @@
+/* ============================================================================
+   Design tokens - the single source of truth for colour, space, type and shape.
+   ----------------------------------------------------------------------------
+   Rules for this file (see .agents/rules/frontend.md and localization-fa.md):
+
+   - Only custom properties live here. No selectors, no layout, no component code.
+     A component never hardcodes a colour, a distance or a font size; it reads a
+     token, so a theme change is one file, not a hunt.
+   - Names say what a value is FOR, not what it looks like: `--color-danger`
+     rather than `--color-red`, because a red that means "error" must stay the
+     error colour when the palette changes.
+   - Direction is not a token. The layout is RTL-first: distances are written as
+     logical properties (`margin-inline-start`), and physical names (`left`,
+     `right`) are avoided entirely so nothing has to be mirrored later.
+   - Persian typography needs more line height and no letter spacing; the scale
+     below is tuned for that, not copied from a Latin design system.
+   ========================================================================== */
+
+:root {
+  /* --- Colour: brand ------------------------------------------------------ */
+  /* A calm blue for a print product: it must not compete with the user's own
+     design, which is the actual content of every screen. */
+  --color-brand-50: #eef6ff;
+  --color-brand-100: #d9ecff;
+  --color-brand-200: #b6d9ff;
+  --color-brand-300: #84bfff;
+  --color-brand-400: #4f9dff;
+  --color-brand-500: #1f7aec; /* primary action */
+  --color-brand-600: #1560c4;
+  --color-brand-700: #124e9e;
+  --color-brand-800: #113f7c;
+  --color-brand-900: #0d2f5c;
+
+  /* --- Colour: accent ----------------------------------------------------- */
+  /* Saffron: used sparingly, for emphasis and highlights only. */
+  --color-accent-100: #fff2d6;
+  --color-accent-400: #ffc043;
+  --color-accent-500: #f2a413;
+  --color-accent-700: #a86b05;
+
+  /* --- Colour: neutrals --------------------------------------------------- */
+  --color-neutral-0: #ffffff;
+  --color-neutral-50: #f7f8fa;
+  --color-neutral-100: #eef0f4;
+  --color-neutral-200: #dfe3ea;
+  --color-neutral-300: #c6ccd8;
+  --color-neutral-400: #9aa3b2;
+  --color-neutral-500: #6d7787;
+  --color-neutral-600: #525b69;
+  --color-neutral-700: #3c444f;
+  --color-neutral-800: #272d36;
+  --color-neutral-900: #171b21;
+
+  /* --- Colour: semantic --------------------------------------------------- */
+  --color-success-100: #e3f6ec;
+  --color-success-500: #1f9d5c;
+  --color-success-700: #14663c;
+
+  --color-warning-100: #fff6e0;
+  --color-warning-500: #d98a00;
+  --color-warning-700: #8f5a00;
+
+  --color-danger-100: #fdeaea;
+  --color-danger-500: #d43b3b;
+  --color-danger-700: #962626;
+
+  --color-info-100: #e8f1fd;
+  --color-info-500: #2b6fd4;
+  --color-info-700: #1c4c94;
+
+  /* --- Colour: roles (what components actually use) ----------------------- */
+  --color-surface: var(--color-neutral-0);
+  --color-surface-raised: var(--color-neutral-0);
+  --color-surface-sunken: var(--color-neutral-50);
+  --color-surface-brand: var(--color-brand-50);
+  --color-border: var(--color-neutral-200);
+  --color-border-strong: var(--color-neutral-300);
+  --color-text: var(--color-neutral-900);
+  --color-text-muted: var(--color-neutral-500);
+  --color-text-inverted: var(--color-neutral-0);
+  --color-focus-ring: var(--color-brand-500);
+  --color-overlay: rgb(23 27 33 / 45%);
+
+  /* --- Typography --------------------------------------------------------- */
+  /* Vazirmatn is self-hosted (public/assets/fonts): a CDN would mean a network
+     dependency the owner has not ratified, and it would fail on a slow mobile
+     connection exactly when the interface text matters most. The fallback chain
+     is the fonts a Persian user's device is most likely to have. */
+  --font-family-base: Vazirmatn, "Segoe UI", Tahoma, "Iranian Sans", sans-serif;
+  /* Monospace is used for identifiers, amounts and code - never for Persian
+     prose, because monospace fonts rarely shape Persian correctly. */
+  --font-family-mono: "Cascadia Mono", "Consolas", "Courier New", monospace;
+
+  --font-size-xs: 0.75rem;   /* 12px - captions, table meta */
+  --font-size-sm: 0.875rem;  /* 14px - secondary text, form help */
+  --font-size-md: 1rem;      /* 16px - body; the browser default, never go below on mobile */
+  --font-size-lg: 1.125rem;  /* 18px - lead paragraph */
+  --font-size-xl: 1.375rem;  /* 22px - card title */
+  --font-size-2xl: 1.75rem;  /* 28px - section heading */
+  --font-size-3xl: 2.25rem;  /* 36px - page heading */
+  --font-size-4xl: 2.75rem;  /* 44px - landing headline */
+
+  /* Persian ascenders/descenders and diacritics need room: 1.5 is the floor for
+     body text, not the ceiling. */
+  --line-height-tight: 1.35;   /* headings */
+  --line-height-base: 1.75;    /* body - Persian needs the extra room */
+  --line-height-loose: 2;      /* long-form reading */
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-bold: 700;
+
+  /* Letter spacing is intentionally absent: Persian is a joined script and
+     stretching it damages shaping. This variable exists only so a future
+     Latin-only element can opt in explicitly. */
+  --letter-spacing-latin: 0.01em;
+
+  /* --- Space -------------------------------------------------------------- */
+  /* One 4px rhythm. Every distance in the interface is one of these values, so
+     two screens built months apart still line up. */
+  --space-0: 0;
+  --space-1: 0.25rem;  /*  4px */
+  --space-2: 0.5rem;   /*  8px */
+  --space-3: 0.75rem;  /* 12px */
+  --space-4: 1rem;     /* 16px - default gap */
+  --space-5: 1.5rem;   /* 24px */
+  --space-6: 2rem;     /* 32px */
+  --space-7: 2.5rem;   /* 40px */
+  --space-8: 3rem;     /* 48px */
+  --space-9: 4rem;     /* 64px */
+
+  /* --- Shape -------------------------------------------------------------- */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-pill: 999px;
+  --border-width: 1px;
+  --border-width-strong: 2px;
+
+  /* --- Elevation ---------------------------------------------------------- */
+  --shadow-sm: 0 1px 2px rgb(23 27 33 / 6%);
+  --shadow-md: 0 4px 12px rgb(23 27 33 / 8%);
+  --shadow-lg: 0 12px 32px rgb(23 27 33 / 12%);
+
+  /* --- Motion ------------------------------------------------------------- */
+  /* Short and few: the interface must feel immediate on a mid-range Android
+     phone, and animation is the first thing to become janky there. */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --easing-standard: cubic-bezier(0.2, 0, 0, 1);
+
+  /* --- Layout ------------------------------------------------------------- */
+  /* Breakpoints cannot live in custom properties (media queries do not read
+     them), so they are declared here as documentation and used as literals:
+       40rem (640px) small - single column
+       56rem (896px) medium - two columns
+       72rem (1152px) large - full layout
+     Any change must be made in both places; the test suite checks that the
+     literals used in the stylesheets are among these three. */
+  --content-width: 72rem;
+  --content-width-narrow: 40rem;
+
+  /* --- Layers ------------------------------------------------------------- */
+  /* A short, fixed ladder. Components may not invent z-index values: that is
+     how a dropdown ends up under a sticky header. */
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-dropdown: 20;
+  --z-overlay: 30;
+  --z-modal: 40;
+  --z-toast: 50;
+}
+
+/* ---------------------------------------------------------------------------
+   Dark theme. Declared twice on purpose:
+
+   - `[data-theme="dark"]` is the explicit choice (a user setting, stored later),
+   - `@media (prefers-color-scheme: dark)` respects the device setting when the
+     user has not chosen anything.
+
+   Only the role tokens are overridden. Components read roles, so they do not
+   know a theme exists - which is the point of the indirection.
+   --------------------------------------------------------------------------- */
+
+[data-theme="dark"] {
+  --color-surface: var(--color-neutral-900);
+  --color-surface-raised: var(--color-neutral-800);
+  --color-surface-sunken: #10141a;
+  --color-surface-brand: #10233d;
+  --color-border: #333b46;
+  --color-border-strong: #46505e;
+  --color-text: #eef1f6;
+  --color-text-muted: #a3acbb;
+  --color-text-inverted: var(--color-neutral-900);
+  --color-focus-ring: var(--color-brand-300);
+  --color-danger-100: #3a1d1d;
+  --color-success-100: #16301f;
+  --color-warning-100: #33270c;
+  --color-info-100: #14243c;
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 45%);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 50%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-surface: var(--color-neutral-900);
+    --color-surface-raised: var(--color-neutral-800);
+    --color-surface-sunken: #10141a;
+    --color-surface-brand: #10233d;
+    --color-border: #333b46;
+    --color-border-strong: #46505e;
+    --color-text: #eef1f6;
+    --color-text-muted: #a3acbb;
+    --color-text-inverted: var(--color-neutral-900);
+    --color-focus-ring: var(--color-brand-300);
+    --color-danger-100: #3a1d1d;
+    --color-success-100: #16301f;
+    --color-warning-100: #33270c;
+    --color-info-100: #14243c;
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 40%);
+    --shadow-md: 0 4px 12px rgb(0 0 0 / 45%);
+    --shadow-lg: 0 12px 32px rgb(0 0 0 / 50%);
+  }
+}
+
+/* Users who ask their system to reduce motion get no transitions at all. This
+   is a floor, not a preference: vestibular disorders are real, and a spinner
+   that must keep spinning is documented per component. */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+  }
+}

@@ -24,6 +24,7 @@ final class Application
     private ?\App\Core\Security\Csrf $csrf = null;
     private ?\App\Core\Security\RateLimiter $rateLimiter = null;
     private ?\App\Core\Jobs\Queue $queue = null;
+    private ?View $view = null;
     private ?\App\Core\Jobs\JobRunner $jobRunner = null;
 
     public function __construct(private readonly string $root)
@@ -61,6 +62,18 @@ final class Application
     public function errorHandler(): ErrorHandler
     {
         return $this->errorHandler ??= new ErrorHandler($this->logger(), $this->config()->isDebug());
+    }
+
+    /**
+     * The HTML renderer for this request.
+     *
+     * Views live outside the web root and are rendered by the application, never by the web server
+     * directly: a template that could be requested over HTTP would be executed without the
+     * application's context, or - worse - served as source.
+     */
+    public function view(): View
+    {
+        return $this->view ??= new View($this->root . '/app/Views');
     }
 
     /**

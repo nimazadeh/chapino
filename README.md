@@ -2,11 +2,14 @@
 
 > **Status:** Phase 0 (foundation) is in progress. Delivered so far: the application core
 > (configuration, request lifecycle, routing, error handling, logging, Persian validation), the data
-> layer with versioned migrations and an installer that needs no shell, and the security foundation
+> layer with versioned migrations and an installer that needs no shell, the security foundation
 > (session and cookie policy, CSRF, database-backed rate limiting) with a database-backed job queue
-> driven by cron. Product features do not exist yet. The delivery sequence is in
-> [docs/product/roadmap.md](docs/product/roadmap.md); what remains in Phase 0 is the RTL design
-> system, the browser-side test harness and the installation runbook.
+> driven by cron, and the RTL design system (design tokens, a self-hosted Persian font, base
+> components, the base script, a server-rendered page layer and a development-only style guide at
+> `/design-system`). Product features do not exist yet. The delivery sequence is in
+> [docs/product/roadmap.md](docs/product/roadmap.md); what remains in Phase 0 is the schema seed and
+> the host capability report, the browser-side test harness (pending `O-11`) and the installation
+> runbook.
 
 A print-on-demand customisation platform for Iran: a user builds a design in the browser, previews it
 on a product mockup, publishes it as a shareable product page, and an order is placed and paid for

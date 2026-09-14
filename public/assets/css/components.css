@@ -1,0 +1,373 @@
+/* ============================================================================
+   Components - reusable, self-contained units of presentation.
+   ----------------------------------------------------------------------------
+   A component is a documented class with an explicit contract, not a style that
+   happens to look right on one screen:
+
+   - every value comes from tokens.css;
+   - spacing is logical (`inset-inline-start`, `margin-block-end`), so nothing
+     needs mirroring for RTL;
+   - interactive elements use the real element (`button`, `input`, `table`),
+     never a `div` with a click handler;
+   - every component defines its own focus style, disabled style and - where it
+     is a form control - its invalid style, because a state that has no style is
+     a state the user cannot see.
+   ========================================================================== */
+
+/* --- Button --------------------------------------------------------------
+   Contract:  <button class="btn btn-primary" type="submit">
+              <a class="btn btn-secondary" href="...">  (allowed for navigation)
+              Optional: .btn-sm, .btn-block, .btn-danger, .btn-ghost
+              Loading:  aria-busy="true" plus `.btn.is-busy`
+   Notes: inline-flex keeps the label centred with an icon; disabled buttons
+   keep their contrast (a greyed-out label that fails contrast is not "disabled",
+   it is unreadable). */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 2.75rem; /* 44px: the smallest reliable touch target on mobile */
+  padding: var(--space-2) var(--space-5);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--color-brand-500);
+  color: var(--color-text-inverted);
+  font-size: var(--font-size-md);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.6;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--duration-fast) var(--easing-standard),
+    border-color var(--duration-fast) var(--easing-standard);
+}
+
+.btn:hover {
+  background: var(--color-brand-600);
+  color: var(--color-text-inverted);
+}
+
+.btn:active {
+  background: var(--color-brand-700);
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  background: var(--color-neutral-300);
+  color: var(--color-neutral-700);
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: var(--color-surface-raised);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+
+.btn-secondary:hover {
+  background: var(--color-surface-sunken);
+  border-color: var(--color-neutral-400);
+  color: var(--color-text);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--color-brand-600);
+}
+
+.btn-ghost:hover {
+  background: var(--color-surface-brand);
+  color: var(--color-brand-700);
+}
+
+.btn-danger {
+  background: var(--color-danger-500);
+}
+
+.btn-danger:hover {
+  background: var(--color-danger-700);
+}
+
+.btn-sm {
+  min-height: 2rem;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-size-sm);
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* A busy button must not accept a second click: the JavaScript layer sets
+   `aria-busy` and `disabled`, this rule only makes the state visible. */
+.btn.is-busy {
+  cursor: progress;
+  opacity: 0.85;
+}
+
+/* --- Field ---------------------------------------------------------------
+   Contract:  <div class="field"> <label for> <input> <p class="field-help">
+              <p class="field-error" id="...-error" role="alert"> </div>
+              The input gets aria-invalid="true" and aria-describedby pointing at
+              the help and error ids - the error must be announced, not only seen.
+   Notes: the error text is placed under the field, on the side the eye already
+   is, and never moves the label (a jumping form is how users lose their place). */
+.field {
+  display: block;
+  margin-block-end: var(--space-5);
+}
+
+.field-label {
+  display: block;
+  margin-block-end: var(--space-2);
+  font-weight: var(--font-weight-medium);
+}
+
+.field-required::after {
+  content: " *";
+  color: var(--color-danger-500);
+}
+
+.field-input,
+.field-select,
+.field-textarea {
+  display: block;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  border: var(--border-width) solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  transition: border-color var(--duration-fast) var(--easing-standard);
+}
+
+.field-textarea {
+  min-height: 7rem;
+  resize: vertical;
+  line-height: var(--line-height-base);
+}
+
+/* Inputs that will hold Latin data (mobile number, email, code) are declared
+   as such, so the browser does not try to shape them as Persian. */
+.field-input[dir="ltr"],
+.field-textarea[dir="ltr"] {
+  text-align: start;
+}
+
+.field-input:disabled,
+.field-select:disabled,
+.field-textarea:disabled {
+  background: var(--color-surface-sunken);
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.field-help {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.field-error {
+  margin: var(--space-2) 0 0;
+  color: var(--color-danger-700);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}
+
+/* Invalid state: border, message AND an icon-free colour change, because
+   colour alone is not an accessible signal. */
+.field-input[aria-invalid="true"],
+.field-select[aria-invalid="true"],
+.field-textarea[aria-invalid="true"] {
+  border-color: var(--color-danger-500);
+  background: var(--color-danger-100);
+}
+
+/* --- Card ---------------------------------------------------------------- */
+.card {
+  background: var(--color-surface-raised);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+}
+
+.card-title {
+  margin-block-end: var(--space-2);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-medium);
+}
+
+.card-meta {
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+/* --- Alert ---------------------------------------------------------------
+   Contract: role="status" for information, role="alert" only for something the
+   user must hear immediately (an error). Using role="alert" for everything is
+   how a screen reader becomes unusable. */
+.alert {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-md);
+  margin-block-end: var(--space-4);
+}
+
+.alert-info {
+  background: var(--color-info-100);
+  border-color: var(--color-info-500);
+}
+
+.alert-success {
+  background: var(--color-success-100);
+  border-color: var(--color-success-500);
+}
+
+.alert-warning {
+  background: var(--color-warning-100);
+  border-color: var(--color-warning-500);
+}
+
+.alert-danger {
+  background: var(--color-danger-100);
+  border-color: var(--color-danger-500);
+}
+
+/* --- Badge --------------------------------------------------------------- */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-neutral-100);
+  color: var(--color-neutral-700);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.badge-success {
+  background: var(--color-success-100);
+  color: var(--color-success-700);
+}
+
+.badge-warning {
+  background: var(--color-warning-100);
+  color: var(--color-warning-700);
+}
+
+.badge-danger {
+  background: var(--color-danger-100);
+  color: var(--color-danger-700);
+}
+
+.badge-brand {
+  background: var(--color-surface-brand);
+  color: var(--color-brand-700);
+}
+
+/* --- Table --------------------------------------------------------------- */
+.table-wrapper {
+  overflow-x: auto; /* wide tables scroll instead of breaking the layout */
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface-raised);
+}
+
+.table caption {
+  padding: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  text-align: start;
+}
+
+.table th,
+.table td {
+  padding: var(--space-3);
+  text-align: start; /* start, not left: this is the RTL-correct default */
+  border-block-end: var(--border-width) solid var(--color-border);
+}
+
+.table th {
+  background: var(--color-surface-sunken);
+  font-weight: var(--font-weight-medium);
+}
+
+.table tbody tr:last-child td {
+  border-block-end: 0;
+}
+
+/* Numeric columns stay tabular and Latin-aligned for comparison, which the
+   localization rule allows explicitly. */
+.table .cell-number {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* --- Spinner ------------------------------------------------------------- */
+.spinner {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  border: var(--border-width-strong) solid var(--color-border);
+  border-block-start-color: var(--color-brand-500);
+  border-radius: 50%;
+  animation: spinner-rotate 0.8s linear infinite;
+}
+
+/* With reduced motion the spinner becomes a static ring - the text beside it
+   carries the meaning, so nothing is lost. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+    border-block-start-color: var(--color-brand-500);
+  }
+}
+
+@keyframes spinner-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- Empty state ---------------------------------------------------------
+   An empty screen is a first-class screen: it says why it is empty and what to
+   do next, instead of showing a blank panel. */
+.empty-state {
+  padding: var(--space-7) var(--space-5);
+  text-align: center;
+  background: var(--color-surface-raised);
+  border: var(--border-width) dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+}
+
+.empty-state-title {
+  margin-block-end: var(--space-2);
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-medium);
+}
+
+/* --- Page header --------------------------------------------------------- */
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-block-end: var(--space-5);
+}
+
+.page-title {
+  margin: 0;
+  font-size: var(--font-size-2xl);
+}

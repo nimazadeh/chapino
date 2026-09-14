@@ -31,6 +31,7 @@ final class Request
          * is not a limit. Null means "not measured" - never "empty".
          */
         private ?int $rawBodyLength = null,
+        private readonly string $basePath = '',
     ) {
     }
 
@@ -60,6 +61,7 @@ final class Request
             self::generateRequestId(),
             $json,
             strlen($raw),
+            self::deploymentPrefix($_SERVER),
         );
     }
 
@@ -95,11 +97,53 @@ final class Request
     }
 
     /**
+     * The deployment prefix under which the application is served, without a trailing slash:
+     * '' when the front controller is the document root, '/chapino/public' in a subfolder install.
+     *
+     * This is the *output* side of the same fact `resolvePath()` handles on the input side. A link or
+     * an asset URL that ignores it works on a developer machine (document root = project) and 404s on
+     * the XAMPP/Laragon layout the owner actually uses (htdocs/chapino/public), which is the failure
+     * mode the subfolder tests exist for.
+     *
+     * It is derived from SCRIPT_NAME - a server fact - and never from the request URI, which the
+     * client controls: a prefix a client could choose would let a link point anywhere.
+     */
+    public function basePath(): string
+    {
+        return $this->basePath;
+    }
+
+    /**
      * Supports hosts without URL rewriting: when the front controller is reached as
      * /index.php?r=/api/health, the requested path comes from the `r` parameter.
      *
      * @param array<string, mixed> $server
      */
+    /**
+     * The directory the front controller is served from, as the web server reports it.
+     *
+     * Both the input side (`resolvePath`) and the output side (`basePath`) need the same answer, so
+     * it is computed once here: two copies of this rule would eventually disagree, and the symptom
+     * would be a 404 for a stylesheet that exists.
+     *
+     * @param array<string, mixed> $server
+     */
+    private static function deploymentPrefix(array $server): string
+    {
+        $scriptName = str_replace('\\', '/', (string) ($server['SCRIPT_NAME'] ?? ''));
+        if ($scriptName === '' || $scriptName === '/') {
+            return '';
+        }
+
+        // /index.php -> nothing to strip; /shop/index.php -> /shop
+        $directory = str_ends_with($scriptName, '.php')
+            ? dirname($scriptName)
+            : $scriptName;
+        $directory = rtrim($directory, '/');
+
+        return $directory === '' || $directory === '.' || $directory === '/' ? '' : $directory;
+    }
+
     private static function resolvePath(array $server): string
     {
         $uri = (string) ($server['REQUEST_URI'] ?? '/');
@@ -115,12 +159,16 @@ final class Request
         // route. Stripping only the full script name was not enough: a request for /chapino/public/
         // does not start with /chapino/public/index.php, so the prefix stayed in the path and every
         // route in a subfolder installation returned 404 (found by the subfolder test).
+        // Two strips, longest first, because the front controller sits inside the deployment
+        // directory: /shop/public/index.php/api/health must lose the whole file path, while
+        // /shop/public/api/health only has a directory to lose. Stripping the directory first would
+        // leave `/index.php/api/health` behind and 404 a URL that a rewrite legitimately produces.
         if ($scriptName !== '' && $scriptName !== '/' && str_starts_with($path, $scriptName)) {
             $path = substr($path, strlen($scriptName));
         } else {
-            $base = rtrim(dirname($scriptName), '/');
-            if ($base !== '' && $base !== '.' && ($path === $base || str_starts_with($path, $base . '/'))) {
-                $path = substr($path, strlen($base));
+            $prefix = self::deploymentPrefix($server);
+            if ($prefix !== '' && ($path === $prefix || str_starts_with($path, $prefix . '/'))) {
+                $path = substr($path, strlen($prefix));
             }
         }
 

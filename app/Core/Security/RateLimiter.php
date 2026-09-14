@@ -27,6 +27,20 @@ use App\Core\Database\TableDefinition;
  */
 final class RateLimiter
 {
+    /*
+     * Two time representations live in this table, on purpose:
+     *
+     *   window_started_at  INTEGER  - window alignment is arithmetic (floor(now / window) * window),
+     *                                 and it is part of the unique key, so it must be exact and
+     *                                 cheap to compare.
+     *   expires_at         DATETIME - the purge is a range delete (`WHERE expires_at < ?`) that both
+     *                                 engines index the same way, and a formatted UTC string sorts
+     *                                 correctly.
+     *
+     * Mixing them inside one row is deliberate, not an oversight: a reader who "unifies" them will
+     * break either the alignment arithmetic or the purge index.
+     */
+
     public function __construct(
         private readonly Connection $database,
         private readonly string $namespace = '',
