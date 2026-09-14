@@ -33,6 +33,9 @@ node tools/dev/php.mjs test --filter=Validator
 # Run a single PHP file
 node tools/dev/php.mjs run bin/smoke.php
 node tools/dev/php.mjs run bin/smoke.php --config=/path/to/config.php
+
+# Run the browser test cases (tests/browser/cases.js) in jsdom
+node tools/dev/browser-tests.mjs
 ```
 
 On a machine or host that has native PHP, the same things are run directly:
@@ -51,5 +54,10 @@ php bin/smoke.php --config=/path/to/config.php                                  
 - WebAssembly has no web server: `bin/smoke.php` includes the real front controller with
   superglobals set, which is the closest equivalent to an HTTP request available here. Once the
   product is on the host, the same script answers the same question over real HTTP semantics.
+- `browser-tests.mjs` runs the **same** `tests/browser/cases.js` against the real
+  `public/assets/js/app.js` inside jsdom. It covers behaviour (digits, formatting, CSRF injection,
+  submit locking); it does **not** cover layout, fonts or anything visual, because jsdom has no layout
+  engine. For that, a browser opens `/tests/browser` - the same cases, the same fixtures
+  (see `O-11`: committed in-browser harness, no install).
 - A check that cannot fail is not a check: `tools/dev/lint-files.php` was verified against a
   deliberately broken file, and it reported the parse error (see the Phase 0 report).

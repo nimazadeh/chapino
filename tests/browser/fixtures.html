@@ -1,0 +1,42 @@
+<!--
+  Fixtures for the browser harness.
+
+  Why a `<template>`: the harness must test behaviours on REAL DOM nodes, and it must not leave
+  those nodes in the page it runs in. A template is inert markup - one clone per test, removed
+  afterwards - so a failing test cannot pollute the next one.
+
+  This file is the single source for both runners:
+    * the browser harness includes it into /tests/browser (development only);
+    * the Node runner (tools/dev/browser-tests.mjs) parses it with jsdom.
+  If the two ever diverged, one of them would be testing something the other never runs.
+-->
+<template id="fixtures">
+    <!-- Numbers -->
+    <span data-fixture="number-attribute" data-persian-number="45000">45000</span>
+    <span data-fixture="number-text" data-persian-number>1234</span>
+    <span data-fixture="number-fraction" data-persian-number="1234.567" data-persian-number-fraction="2">1234.567</span>
+    <span data-fixture="number-negative" data-persian-number="-2500">-2500</span>
+    <span data-fixture="number-invalid" data-persian-number="نامعلوم">مقدار نامعلوم</span>
+    <span data-fixture="number-fractional-no-declaration" data-persian-number="12.5">12.5</span>
+    <span data-fixture="number-unmarked">1234567</span>
+    <!-- What the studio produces: the value on the page is already Persian, and the
+         localization pass runs again after every edit. -->
+    <span data-fixture="number-persian-text" data-persian-number>۱۲۳۴</span>
+    <span data-fixture="number-arabic-attribute" data-persian-number="١٢٣٤">1234</span>
+
+    <!-- Forms -->
+    <form data-fixture="form-post" method="post" action="/design-system">
+        <button type="submit">ارسال</button>
+    </form>
+    <form data-fixture="form-get" method="get" action="/design-system">
+        <input type="text" name="q" value="">
+        <button type="submit">جست‌وجو</button>
+    </form>
+    <form data-fixture="form-with-token" method="post" action="/design-system">
+        <input type="hidden" name="_token" value="token-from-the-server">
+        <button type="submit">ارسال</button>
+    </form>
+    <form data-fixture="form-no-lock" method="post" action="/design-system" data-no-lock>
+        <button type="submit">ارسال</button>
+    </form>
+</template>

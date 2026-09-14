@@ -6,9 +6,11 @@
   "scripts": {
     "lint": "node php.mjs lint",
     "test": "node php.mjs test",
-    "check": "node php.mjs check"
+    "browser-tests": "node browser-tests.mjs",
+    "check": "node php.mjs check && node browser-tests.mjs"
   },
   "devDependencies": {
-    "@php-wasm/node": "3.1.53"
+    "@php-wasm/node": "3.1.53",
+    "jsdom": "^30.0.1"
   }
 }

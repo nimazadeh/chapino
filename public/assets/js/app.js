@@ -25,8 +25,13 @@
    * ---------------------------------------------------------------------- */
 
   var PERSIAN_DIGITS = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"];
+  // Arabic-Indic digits (U+0660..U+0669). They are not Persian, but they arrive from Arabic
+  // keyboards and copy-pasted text, and a number that silently fails to parse for that reason is
+  // indistinguishable, to the user, from the product being broken.
+  var ARABIC_INDIC_DIGITS = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"];
   var THOUSANDS_SEPARATOR = "٬"; // U+066C, the Persian thousands separator
   var DECIMAL_SEPARATOR = "٫"; // U+066B, the Persian decimal separator
+  var MINUS = "−"; // U+2212, not a hyphen: it aligns in RTL
 
   /**
    * Converts Latin digits in a string to Persian digits.
@@ -41,19 +46,50 @@
   }
 
   /**
+   * Turns a string that a HUMAN may have typed or read back into Latin digits.
+   *
+   * This is the inverse of `toPersianDigits`, and it exists for the same reason: one rule, one
+   * implementation. It handles Persian digits, Arabic-Indic digits, both Persian separators and the
+   * RTL minus sign, because a value that has already been displayed once (U+066C separators and all)
+   * must still be readable when a later update formats it again.
+   */
+  function toLatinDigits(value) {
+    return String(value)
+      .replace(/[۰-۹]/g, function (digit) {
+        return String(PERSIAN_DIGITS.indexOf(digit));
+      })
+      .replace(/[٠-٩]/g, function (digit) {
+        return String(ARABIC_INDIC_DIGITS.indexOf(digit));
+      })
+      .replace(/[٬,\s]/g, "") // U+066C and the Latin thousands separator
+      .replace(/٫/g, ".") // U+066B decimal separator
+      .replace(/−/g, "-"); // U+2212 minus
+  }
+
+  /** Reads a number from Latin OR Persian text; NaN when there is no number there. */
+  function parseNumber(value) {
+    var text = toLatinDigits(value).trim();
+    if (text === "") {
+      return NaN;
+    }
+
+    return Number(text);
+  }
+
+  /**
    * Formats an integer with the Persian thousands separator and Persian digits.
    * Throws on non-integer input rather than guessing: silently rounding money
    * because a caller passed a float is the kind of bug nobody notices until a
    * customer does. (Money is stored as an integer amount for the same reason.)
    */
   function formatInteger(value) {
-    var number = typeof value === "number" ? value : Number(value);
+    var number = typeof value === "number" ? value : parseNumber(value);
 
     if (!isFinite(number) || Math.floor(number) !== number) {
       throw new TypeError("formatInteger expects a whole number, received: " + String(value));
     }
 
-    var sign = number < 0 ? "−" : ""; // U+2212 minus, not a hyphen: it aligns in RTL
+    var sign = number < 0 ? MINUS : "";
     var digits = Math.abs(number).toString();
     var grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, THOUSANDS_SEPARATOR);
 
@@ -67,7 +103,7 @@
    */
   function formatAmount(value, fractionDigits) {
     var digits = fractionDigits || 0;
-    var number = typeof value === "number" ? value : Number(value);
+    var number = typeof value === "number" ? value : parseNumber(value);
 
     if (!isFinite(number)) {
       throw new TypeError("formatAmount expects a number, received: " + String(value));
@@ -88,7 +124,7 @@
     var fraction = digits > 0 ? text.slice(text.length - digits) : "";
     var grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, THOUSANDS_SEPARATOR);
 
-    return (negative ? "−" : "") + toPersianDigits(grouped) +
+    return (negative ? MINUS : "") + toPersianDigits(grouped) +
       (fraction ? DECIMAL_SEPARATOR + toPersianDigits(fraction) : "");
   }
 
@@ -102,15 +138,38 @@
     var elements = scope.querySelectorAll("[data-persian-number]");
 
     Array.prototype.forEach.call(elements, function (element) {
-      var source = element.getAttribute("data-persian-number") || element.textContent;
+      var attribute = element.hasAttribute("data-persian-number")
+        ? element.getAttribute("data-persian-number")
+        : null;
+      var source = attribute === null || String(attribute).trim() === ""
+        ? element.textContent
+        : attribute;
+      var number = parseNumber(source);
 
-      if (element.hasAttribute("data-persian-number-fraction")) {
-        var fraction = Number(element.getAttribute("data-persian-number-fraction")) || 0;
-        element.textContent = formatAmount(source, fraction);
+      // Three failures this function must NOT have, all of them seen in the wild:
+      //   * printing "NaN" - the user reads a bug in place of a number;
+      //   * throwing - one bad element would stop the whole page's update, and dynamic screens
+      //     (the design studio) call this after every change;
+      //   * not being re-runnable - the studio re-runs it on updated markup, so a value that has
+      //     already been displayed (with U+066C separators) must format to the same thing again.
+      // The answer to all three: unreadable input leaves the element exactly as the server wrote it.
+      if (!isFinite(number)) {
         return;
       }
 
-      element.textContent = formatInteger(source);
+      if (element.hasAttribute("data-persian-number-fraction")) {
+        var fraction = Number(toLatinDigits(element.getAttribute("data-persian-number-fraction")));
+        element.textContent = formatAmount(number, isFinite(fraction) ? fraction : 0);
+        return;
+      }
+
+      // A fractional value without a declared fraction is not rounded here: silently turning 12.5
+      // into 13 is exactly the money bug `formatInteger` refuses to make for its direct callers.
+      if (Math.floor(number) !== number) {
+        return;
+      }
+
+      element.textContent = formatInteger(number);
     });
   }
 
@@ -207,9 +266,13 @@
     // Display helpers. Later phases use these instead of writing their own,
     // so Persian numerals stay consistent across the product.
     toPersianDigits: toPersianDigits,
+    toLatinDigits: toLatinDigits,
     formatInteger: formatInteger,
     formatAmount: formatAmount,
     localizeNumbers: localizeNumbers,
     csrfToken: csrfToken,
+    // Exposed because dynamically added forms need the token too: the studio adds forms after
+    // load, and a form that submits without the token is rejected by the server.
+    attachCsrfTokens: attachCsrfTokens,
   };
 })();

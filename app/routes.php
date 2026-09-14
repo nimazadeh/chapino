@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Controllers\BrowserTestsController;
 use App\Controllers\DesignSystemController;
 use App\Controllers\HealthController;
 use App\Controllers\HomeController;
@@ -24,4 +25,10 @@ return static function (Router $router, Application $app): void {
     // route can be registered unconditionally and cannot be forgotten during a deployment.
     $router->get('/design-system', static fn ($request) => (new DesignSystemController($app))->show($request));
     $router->post('/design-system', static fn ($request) => (new DesignSystemController($app))->submit($request));
+
+    // The browser test harness: same development-only rule, and its two script files are served here
+    // rather than from public/, so nothing from the test suite is ever deployed.
+    $router->get('/tests/browser', static fn ($request) => (new BrowserTestsController($app))->page($request));
+    $router->get('/tests/browser/harness.js', static fn ($request) => (new BrowserTestsController($app))->harness($request));
+    $router->get('/tests/browser/cases.js', static fn ($request) => (new BrowserTestsController($app))->cases($request));
 };
