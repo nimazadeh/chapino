@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Controllers\BrowserTestsController;
+use App\Controllers\MaintenanceController;
 use App\Controllers\DesignSystemController;
 use App\Controllers\HealthController;
 use App\Controllers\HomeController;
@@ -31,4 +32,10 @@ return static function (Router $router, Application $app): void {
     $router->get('/tests/browser', static fn ($request) => (new BrowserTestsController($app))->page($request));
     $router->get('/tests/browser/harness.js', static fn ($request) => (new BrowserTestsController($app))->harness($request));
     $router->get('/tests/browser/cases.js', static fn ($request) => (new BrowserTestsController($app))->cases($request));
+
+    // Operator tooling: migrations and default settings on a host without shell access. It is not
+    // development-only - applying a migration on a live shared host is what this page is for - and it
+    // is gated by a one-time token file instead (see MaintenanceController).
+    $router->get('/maintenance', static fn ($request) => (new MaintenanceController($app))->show($request));
+    $router->post('/maintenance', static fn ($request) => (new MaintenanceController($app))->submit($request));
 };

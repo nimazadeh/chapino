@@ -75,43 +75,16 @@ try {
         ? "   همه پوشه‌ها از قبل وجود داشتند\n"
         : '   ساخته شد: ' . implode(', ', array_map(static fn (string $p): string => str_replace($root . '/', '', $p), $created)) . "\n";
 
-    $databaseSettings = [
-        'driver' => strtolower((string) $options['driver']),
-        'host' => (string) $options['host'],
-        'port' => (int) $options['port'],
-        'name' => (string) $options['name'],
-        'user' => (string) $options['user'],
-        'password' => (string) $options['password'],
-        'charset' => (string) $options['charset'],
-        'collation' => (string) $options['collation'],
-        'sqlite_path' => 'storage/database.sqlite',
-    ];
+    // One mapping, shared with the web installer: the CLI and the browser must never disagree about
+    // what a valid database configuration is.
+    $databaseSettings = Installer::databaseSettings($options);
 
     echo "۲) بررسی اتصال پایگاه‌داده\n";
     $serverVersion = $installer->checkConnection($databaseSettings);
     echo "   اتصال برقرار شد — {$serverVersion}\n";
 
     echo "۳) نوشتن فایل پیکربندی\n";
-    $configuration = [
-        'app' => [
-            'name' => 'chapino',
-            'env' => 'production',
-            'debug' => false,
-            'url' => (string) $options['url'],
-            'timezone' => 'UTC',
-        ],
-        'storage' => ['path' => 'storage'],
-        'database' => $databaseSettings,
-        'security' => [
-            'session_name' => 'chapino_session',
-            'session_idle_timeout' => 3600,
-            'session_absolute_timeout' => 86400,
-        ],
-        'logging' => ['level' => 'info', 'path' => 'storage/logs'],
-        'sms' => ['provider' => 'kavenegar', 'api_key' => '', 'sender' => ''],
-        'payment' => ['provider' => 'zarinpal', 'merchant_id' => '', 'sandbox' => true],
-        'ai' => ['enabled' => false, 'provider' => 'none'],
-    ];
+    $configuration = Installer::configuration($options + ['storage_path' => 'storage']);
     $path = $installer->writeConfiguration($configuration, (bool) $options['force']);
     echo '   نوشته شد: ' . str_replace($root . '/', '', $path) . "\n";
 

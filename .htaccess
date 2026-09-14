@@ -8,8 +8,11 @@
 # directory and the document root, and this file sits above public/. nginx ignores .htaccess entirely,
 # which is why the install runbook states the document root requirement in words as well.
 #
-# The exception that Apache merges from public/.htaccess (the front controller) is deliberate: even in
-# the wrong-document-root case the site is reachable, while config/, storage/ and the sources are not.
+# public/.htaccess re-grants the front controller and the installer for their own filenames, so those
+# two keep answering even in the wrong-document-root case; everything else here (config/, storage/, the
+# sources) stays denied. That is a safety net, not a supported configuration: with the wrong document
+# root the site answers under /public/ only and every generated link is wrong. Point the host at
+# public/, as the install runbook says.
 
 <IfModule mod_authz_core.c>
     Require all denied

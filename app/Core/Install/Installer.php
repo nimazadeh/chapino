@@ -15,13 +15,19 @@ use App\Core\Settings;
  * Writes the configuration and prepares the database, without shell access and without Composer.
  *
  * The installer is deliberately separable from the CLI script that drives it, so the same logic can
- * be tested and, later, reused by the web installer that a host without shell access needs
- * (ADR-0002). It refuses to overwrite an existing configuration unless explicitly told to, because
+ * be tested and reused by the web installer (public/install.php) that a host without shell access
+ * needs (ADR-0002). It refuses to overwrite an existing configuration unless explicitly told to, because
  * silently replacing a working installation's settings is a destructive act (see the git rule's
  * spirit: never destroy work that already exists).
  */
 final class Installer
 {
+    /** The only charsets an installation may be created with (see databaseSettings()). */
+    private const ALLOWED_CHARSETS = ['utf8mb4', 'utf8'];
+
+    /** The only collations, matching those charsets. */
+    private const ALLOWED_COLLATIONS = ['utf8mb4_unicode_ci', 'utf8mb4_general_ci', 'utf8_unicode_ci', 'utf8_general_ci'];
+
     public function __construct(private readonly string $appRoot)
     {
     }
@@ -50,7 +56,7 @@ final class Installer
         $contents = "<?php\n\n"
             . "declare(strict_types=1);\n\n"
             . "/**\n"
-            . " * Created by bin/install.php on " . Clock::nowIso() . " (UTC).\n"
+            . " * Created by the installer (bin/install.php or the web installer) on " . Clock::nowIso() . " (UTC).\n"
             . " * Contains credentials: never commit this file, never paste its contents into a chat,\n"
             . " * an issue or a log (see the security rule).\n"
             . " */\n\n"
@@ -64,6 +70,118 @@ final class Installer
         @chmod($path, 0640);
 
         return $path;
+    }
+
+    /**
+     * Normalises and validates database settings from an operator's input.
+     *
+     * Shared by the CLI and the web installer on purpose: two copies of this mapping would eventually
+     * disagree, and the symptom would be a configuration file written by one path that the other path
+     * refuses to load. Every value is validated here and nowhere else, so a form field cannot smuggle
+     * a driver or a charset into the configuration.
+     *
+     * @param array<string, mixed> $input
+     * @return array<string, mixed>
+     * @throws InstallException when a value is missing or unsupported
+     */
+    public static function databaseSettings(array $input): array
+    {
+        $driver = strtolower(trim((string) ($input['driver'] ?? 'sqlite')));
+        if (!in_array($driver, [Connection::DRIVER_MYSQL, Connection::DRIVER_SQLITE], true)) {
+            throw new InstallException(
+                'درایور پایگاه‌داده پشتیبانی نمی‌شود: ' . $driver . ' (تنها mysql یا sqlite).',
+                'driver_unsupported',
+            );
+        }
+
+        // Charset and collation are interpolated into `CREATE TABLE ... DEFAULT CHARSET=%s`, so they
+        // are not free text: an allow-list is the only shape that cannot carry a statement. `utf8mb4`
+        // is required anyway (Persian text, emoji), so anything else here is a mistake, not a feature.
+        $charset = strtolower(trim((string) ($input['charset'] ?? 'utf8mb4')));
+        if (!in_array($charset, self::ALLOWED_CHARSETS, true)) {
+            throw new InstallException(
+                'مجموعه‌نویسه‌ی پایگاه‌داده پشتیبانی نمی‌شود: ' . $charset . ' (تنها ' . implode('، ', self::ALLOWED_CHARSETS) . ').',
+                'charset_unsupported',
+            );
+        }
+
+        $collation = strtolower(trim((string) ($input['collation'] ?? 'utf8mb4_unicode_ci')));
+        if (!in_array($collation, self::ALLOWED_COLLATIONS, true)) {
+            throw new InstallException(
+                'کالیشن پایگاه‌داده پشتیبانی نمی‌شود: ' . $collation,
+                'collation_unsupported',
+            );
+        }
+
+        $settings = [
+            'driver' => $driver,
+            'charset' => $charset,
+            'collation' => $collation,
+            'sqlite_path' => (string) ($input['sqlite_path'] ?? 'storage/database.sqlite'),
+        ];
+
+        if ($driver === Connection::DRIVER_MYSQL) {
+            $name = trim((string) ($input['name'] ?? ''));
+            $user = trim((string) ($input['user'] ?? ''));
+            if ($name === '') {
+                throw new InstallException('نام پایگاه‌داده را وارد کنید.', 'database_name_missing');
+            }
+            if ($user === '') {
+                throw new InstallException('نام کاربری پایگاه‌داده را وارد کنید.', 'database_user_missing');
+            }
+
+            $port = (int) ($input['port'] ?? 3306);
+            if ($port < 1 || $port > 65535) {
+                throw new InstallException('شماره پورت پایگاه‌داده معتبر نیست.', 'database_port_invalid');
+            }
+
+            $settings += [
+                'host' => trim((string) ($input['host'] ?? 'localhost')) ?: 'localhost',
+                'port' => $port,
+                'name' => $name,
+                'user' => $user,
+                // Never trimmed: a space can be part of a password, and silently changing it would
+                // produce an authentication failure nobody can explain.
+                'password' => (string) ($input['password'] ?? ''),
+            ];
+        }
+
+        return $settings;
+    }
+
+    /**
+     * The configuration file for a fresh installation.
+     *
+     * @param array<string, mixed> $input the same input databaseSettings() takes, plus `url` and `storage_path`
+     * @return array<string, mixed>
+     */
+    public static function configuration(array $input): array
+    {
+        $storagePath = rtrim(trim((string) ($input['storage_path'] ?? 'storage')), '/');
+        if ($storagePath === '') {
+            $storagePath = 'storage';
+        }
+
+        return [
+            'app' => [
+                'name' => 'chapino',
+                'env' => (string) ($input['env'] ?? 'production'),
+                'debug' => false,
+                'url' => trim((string) ($input['url'] ?? '')),
+                'timezone' => 'UTC',
+            ],
+            'storage' => ['path' => $storagePath],
+            'database' => self::databaseSettings($input),
+            'security' => [
+                'session_name' => 'chapino_session',
+                'session_idle_timeout' => 3600,
+                'session_absolute_timeout' => 86400,
+            ],
+            'logging' => ['level' => 'info', 'path' => $storagePath . '/logs'],
+            'sms' => ['provider' => 'kavenegar', 'api_key' => '', 'sender' => ''],
+            'payment' => ['provider' => 'zarinpal', 'merchant_id' => '', 'sandbox' => true],
+            'ai' => ['enabled' => false, 'provider' => 'none'],
+        ];
     }
 
     /** Verifies that the given database settings actually connect. */

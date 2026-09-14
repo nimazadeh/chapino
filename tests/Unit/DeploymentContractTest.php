@@ -65,7 +65,28 @@ final class DeploymentContractTest extends TestCase
 
         $this->assertStringContains('<FilesMatch "\\.(php|phtml|phar)$">', $htaccess);
         $this->assertStringContains('<Files "index.php">', $htaccess);
+        $this->assertStringContains('<Files "install.php">', $htaccess);
         $this->assertStringContains('RewriteRule ^ index.php [L]', $htaccess, 'routes must reach the front controller');
+
+        // The allowlist and the directory must agree. A PHP file in the web root that nobody granted
+        // is a file that fails mysteriously on Apache; one that is granted without appearing here is
+        // an entry point nobody reviewed. Both are caught by comparing the two lists.
+        $executables = [];
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator(APP_ROOT . '/public', \FilesystemIterator::SKIP_DOTS),
+        );
+        foreach ($iterator as $file) {
+            if (preg_match('/\.(php|phtml|phar)$/i', $file->getFilename()) === 1) {
+                $executables[] = $file->getFilename();
+            }
+        }
+        sort($executables);
+
+        $this->assertSame(
+            ['index.php', 'install.php'],
+            $executables,
+            'a new PHP file in the web root must be a deliberate decision, not a side effect',
+        );
     }
 
     /**
